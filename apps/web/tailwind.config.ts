@@ -88,7 +88,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Cairo", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Cairo", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

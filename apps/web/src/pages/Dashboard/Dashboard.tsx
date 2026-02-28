@@ -1,87 +1,172 @@
+import { AppLayout } from '@/components/layout/AppLayout'
+import { KpiCard } from '@/components/ui/KpiCard'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Plus, Download, TrendingUp, Users, Wrench, DollarSign, FileText, Calendar } from 'lucide-react'
+
 export function Dashboard() {
+  const kpiData = [
+    {
+      title: 'Active Projects',
+      titleAr: 'المشاريع النشطة',
+      value: 12,
+      unit: 'مشروع',
+      change: 8,
+      changeType: 'up',
+      icon: '🏗️',
+      color: 'blue' as const,
+    },
+    {
+      title: 'Total Employees',
+      titleAr: 'إجمالي الموظفين',
+      value: 156,
+      unit: 'موظف',
+      change: 12,
+      changeType: 'up',
+      icon: '👷',
+      color: 'green' as const,
+    },
+    {
+      title: 'Equipment',
+      titleAr: 'المعدات',
+      value: 48,
+      unit: 'معدة',
+      change: -5,
+      changeType: 'down',
+      icon: '🚛',
+      color: 'amber' as const,
+    },
+    {
+      title: 'Revenue',
+      titleAr: 'الإيرادات',
+      value: 1250000,
+      unit: 'ريال',
+      change: 15,
+      changeType: 'up',
+      icon: '💰',
+      color: 'green' as const,
+    },
+  ]
+
+  const headerActions = [
+    {
+      label: 'Add Project',
+      labelAr: 'إضافة مشروع',
+      icon: <Plus className="w-4 h-4" />,
+      variant: 'primary' as const,
+      onClick: () => console.log('Add project clicked'),
+    },
+    {
+      label: 'Export',
+      labelAr: 'تصدير',
+      icon: <Download className="w-4 h-4" />,
+      variant: 'outline' as const,
+      onClick: () => console.log('Export clicked'),
+    },
+  ]
+
+  const breadcrumbs = [
+    { label: 'Home', labelAr: 'الرئيسية', path: '/' },
+    { label: 'Dashboard', labelAr: 'لوحة القيادة' },
+  ]
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-secondary">
-            HeavyOps ERP
-          </h1>
-          <p className="text-gray-600 mt-2">
-            نظام إدارة مقاولات البناء
-          </p>
-        </div>
+    <AppLayout titleAr="لوحة القيادة">
+      <PageHeader
+        title="Dashboard"
+        titleAr="لوحة القيادة"
+        subtitle="Welcome to your ERP dashboard"
+        subtitleAr="مرحباً بك في لوحة القيادة"
+        actions={headerActions}
+        breadcrumbs={breadcrumbs}
+      />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">المشاريع النشطة</p>
-                <p className="text-3xl font-bold text-primary mt-2">12</p>
-              </div>
-              <div className="bg-primary/10 p-3 rounded-full">
-                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-            </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+        <KpiCard {...kpiData[0]} />
+        <KpiCard {...kpiData[1]} />
+        <KpiCard {...kpiData[2]} />
+        <KpiCard {...kpiData[3]} />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Recent Projects */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 font-cairo">آخر المشاريع</h2>
+            <button className="text-[#2563eb] text-sm font-cairo hover:underline">عرض الكل</button>
           </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
               <div>
-                <p className="text-gray-600 text-sm">الموظفين</p>
-                <p className="text-3xl font-bold text-success mt-2">156</p>
+                <p className="font-medium text-gray-900 font-cairo">برج الرياض السكني</p>
+                <p className="text-sm text-gray-500">الرياض، المملكة العربية السعودية</p>
               </div>
-              <div className="bg-success/10 p-3 rounded-full">
-                <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
+              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full font-cairo">
+                نشط
+              </span>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
               <div>
-                <p className="text-gray-600 text-sm">المعدات</p>
-                <p className="text-3xl font-bold text-accent mt-2">48</p>
+                <p className="font-medium text-gray-900 font-cairo">مجمع البرج</p>
+                <p className="text-sm text-gray-500">جدة، المملكة العربية السعودية</p>
               </div>
-              <div className="bg-accent/10 p-3 rounded-full">
-                <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">المخزون</p>
-                <p className="text-3xl font-bold text-danger mt-2">23</p>
-              </div>
-              <div className="bg-danger/10 p-3 rounded-full">
-                <svg className="w-6 h-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
+              <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full font-cairo">
+                قيد التنفيذ
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Welcome Message */}
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <h2 className="text-2xl font-bold text-secondary mb-2">
-            مرحباً بك في HeavyOps ERP
-          </h2>
-          <p className="text-gray-600">
-            النظام جاهز للاستخدام. ابدأ بإضافة مشاريعك الأولى.
-          </p>
+        {/* Alerts */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 font-cairo">التنبيهات</h2>
+            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+              5 جديد
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-red-50 border-r-4 border-red-500 rounded-lg">
+              <span className="text-xl">⚠️</span>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 font-cairo">إقامة الموظف أحمد تنتهي خلال 7 أيام</p>
+                <p className="text-sm text-gray-600 mt-1">يجب تجديد الإقامة قبل 7 مارس 2024</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-amber-50 border-r-4 border-amber-500 rounded-lg">
+              <span className="text-xl">🔧</span>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 font-cairo">صيانة المعدة EQ-001 مستحقة</p>
+                <p className="text-sm text-gray-600 mt-1">آخر صيانة: منذ 45 يوم</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 font-cairo">إحصائيات سريعة</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600 font-cairo">إجمالي المشاريع</span>
+              <span className="font-bold text-gray-900 font-sans">15</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600 font-cairo">الموظفين النشطين</span>
+              <span className="font-bold text-gray-900 font-sans">142</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600 font-cairo">المعدات العاملة</span>
+              <span className="font-bold text-gray-900 font-sans">45</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600 font-cairo">الفعوات هذا الشهر</span>
+              <span className="font-bold text-[#2563eb] font-sans">2.5M ريال</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }
