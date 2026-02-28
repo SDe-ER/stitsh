@@ -40,3 +40,7 @@ export type { KpiCardProps } from './KpiCard'
 
 export { PageHeader } from './PageHeader'
 export type { PageHeaderProps, ActionButton } from './PageHeader'
+
+export { FileUpload } from './FileUpload'
+
+export { ImageCropModal } from './ImageCropModal'

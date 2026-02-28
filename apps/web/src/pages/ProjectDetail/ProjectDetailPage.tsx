@@ -4,8 +4,17 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/Button'
+import { ProjectModal } from '@/components/modals/ProjectModal'
+import { ProductionModal } from '@/components/modals/ProductionModal'
+import { TipperTypesModal } from '@/components/modals/TipperTypesModal'
+import { CrushersModal } from '@/components/modals/CrushersModal'
+import { AssignEquipmentModal } from '@/components/modals/AssignEquipmentModal'
+import { EquipmentOperationModal } from '@/components/modals/EquipmentOperationModal'
 import { useProjectDetail } from '@/hooks/useProjects'
-import { formatMillions } from '@/utils/format'
+import { useProductionRecords, useDeleteProduction, shiftLabels, getCrushers, type ProductionRecord, type Crusher } from '@/hooks/useProduction'
+import { useEquipment } from '@/hooks/useEquipment'
+import { useEquipmentOperations, useDeleteEquipmentOperation } from '@/hooks/useEquipmentOperations'
+import { formatMillions, formatNumber } from '@/utils/format'
 import {
   ArrowRight,
   MapPin,
@@ -25,6 +34,16 @@ import {
   Edit,
   Trash2,
   Download,
+  Plus,
+  BarChart3,
+  Truck,
+  Construction,
+  Timer,
+  Sun,
+  Moon,
+  Factory,
+  Activity,
+  Settings,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -45,13 +64,15 @@ import {
 // ============================================================================
 // TAB TYPES
 // ============================================================================
-type TabType = 'overview' | 'financial' | 'team' | 'equipment'
+type TabType = 'overview' | 'financial' | 'team' | 'equipment' | 'items' | 'production'
 
 const tabs: { id: TabType; label: string; labelAr: string }[] = [
   { id: 'overview', label: 'Overview', labelAr: 'نظرة عامة' },
   { id: 'financial', label: 'Financial', labelAr: 'مالي' },
   { id: 'team', label: 'Team', labelAr: 'الفريق' },
-  { id: 'equipment', label: 'Equipment', labelAr: 'المعدات' },
+  { id: 'equipment', label: 'Equipment', labelAr: 'المعدات والتشغيل' },
+  { id: 'items', label: 'Items', labelAr: 'البنود' },
+  { id: 'production', label: 'Production', labelAr: 'الإنتاج' },
 ]
 
 // ============================================================================
@@ -562,25 +583,56 @@ function TeamTab({ data }: { data: any }) {
 // ============================================================================
 // EQUIPMENT TAB
 // ============================================================================
-function EquipmentTab({ data }: { data: any }) {
+function EquipmentTab({ data, onManageEquipment, onRecordOperation }: { data: any; onManageEquipment: () => void; onRecordOperation: () => void }) {
+  const { data: equipment = [] } = useEquipment()
+  const { data: operations = [] } = useEquipmentOperations({ projectId: data.id })
+  const deleteOperationMutation = useDeleteEquipmentOperation()
+
+  // Get assigned equipment
+  const assignedEquipment = equipment.filter(eq => data.assignedEquipmentIds?.includes(eq.id))
+
   const statusConfig = {
-    'in-use': { label: 'قيد الاستخدام', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-    'maintenance': { label: 'تحت الصيانة', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-    'available': { label: 'متاح', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
+    active: { label: 'نشطة', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+    inactive: { label: 'خامدة', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' },
+    maintenance: { label: 'تحت الصيانة', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
   }
+
+  const handleDeleteOperation = (operationId: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+      deleteOperationMutation.mutate(operationId)
+    }
+  }
+
+  // Calculate operations statistics
+  const totalOperationHours = operations.reduce((sum: number, op: any) => sum + op.hours, 0)
+  const totalOperationCost = operations.reduce((sum: number, op: any) => sum + op.totalCost, 0)
 
   return (
     <div className="space-y-6">
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        <Button variant="primary" onClick={onManageEquipment} className="font-cairo">
+          <Settings className="w-4 h-4 ml-2" />
+          إدارة المعدات
+        </Button>
+        {assignedEquipment.length > 0 && (
+          <Button variant="outline" onClick={onRecordOperation} className="font-cairo">
+            <Activity className="w-4 h-4 ml-2" />
+            تسجيل تشغيل
+          </Button>
+        )}
+      </div>
+
       {/* Equipment Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
               <Wrench className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-cairo">إجمالي المعدات</p>
-              <p className="text-2xl font-bold text-gray-900 font-sans">{data.equipment.length}</p>
+              <p className="text-sm text-gray-500 font-cairo">المعدات المضافة</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{assignedEquipment.length}</p>
             </div>
           </div>
         </div>
@@ -590,9 +642,9 @@ function EquipmentTab({ data }: { data: any }) {
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-cairo">قيد الاستخدام</p>
+              <p className="text-sm text-gray-500 font-cairo">نشطة</p>
               <p className="text-2xl font-bold text-gray-900 font-sans">
-                {data.equipment.filter((e: any) => e.status === 'in-use').length}
+                {assignedEquipment.filter((e: any) => e.status === 'active').length}
               </p>
             </div>
           </div>
@@ -605,39 +657,641 @@ function EquipmentTab({ data }: { data: any }) {
             <div>
               <p className="text-sm text-gray-500 font-cairo">تحت الصيانة</p>
               <p className="text-2xl font-bold text-gray-900 font-sans">
-                {data.equipment.filter((e: any) => e.status === 'maintenance').length}
+                {assignedEquipment.filter((e: any) => e.status === 'maintenance').length}
               </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-purple-50 text-purple-600">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">ساعات التشغيل</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{formatNumber(totalOperationHours)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Equipment Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.equipment.map((item: any) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="p-2.5 rounded-lg bg-gray-100">
-                <Wrench className="w-5 h-5 text-gray-600" />
+      {assignedEquipment.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-xl">
+          <Wrench className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-lg text-gray-700 font-cairo mb-2">لم يتم إضافة أي معدات للمشروع</p>
+          <p className="text-sm text-gray-500 font-cairo mb-4">اضغط على "إدارة المعدات" لإضافة معدات</p>
+          <Button variant="primary" onClick={onManageEquipment} className="font-cairo">
+            <Plus className="w-4 h-4 ml-2" />
+            إضافة معدات
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {assignedEquipment.map((item: any) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-lg bg-gray-100">
+                  <Wrench className="w-5 h-5 text-gray-600" />
+                </div>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full font-cairo ${
+                  statusConfig[item.status]?.color || 'bg-gray-100 text-gray-700'
+                }`}>
+                  {statusConfig[item.status]?.label || item.status}
+                </span>
               </div>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full font-cairo ${
-                statusConfig[item.status].color
-              }`}>
-                {statusConfig[item.status].label}
-              </span>
+              <h4 className="font-medium text-gray-900 font-cairo mb-1">{item.nameAr}</h4>
+              <p className="text-sm text-gray-500 font-cairo mb-3">{item.name}</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 font-cairo">الرمز</span>
+                  <span className="font-medium text-gray-900 font-sans">{item.code}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 font-cairo">النوع</span>
+                  <span className="font-medium text-gray-900 font-cairo">{item.typeAr}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 font-cairo">الساعات</span>
+                  <span className="font-medium text-gray-900 font-sans">{formatNumber(item.totalHours)} ساعة</span>
+                </div>
+              </div>
             </div>
-            <h4 className="font-medium text-gray-900 font-cairo mb-1">{item.nameAr}</h4>
-            <p className="text-sm text-gray-500 font-cairo mb-3">{item.name}</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 font-cairo">النوع</span>
-              <span className="font-medium text-gray-900 font-cairo">{item.typeAr}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Equipment Operations Section */}
+      {assignedEquipment.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 font-cairo">سجل تشغيل المعدات</h2>
+              <p className="text-sm text-gray-500 font-cairo">Equipment Operations Records</p>
+            </div>
+            <div className="flex gap-2">
+              <div className="bg-blue-50 rounded-lg px-4 py-2">
+                <p className="text-xs text-blue-600 font-cairo">إجمالي الساعات</p>
+                <p className="text-lg font-bold text-blue-700 font-sans">{formatNumber(totalOperationHours)} ساعة</p>
+              </div>
+              <div className="bg-green-50 rounded-lg px-4 py-2">
+                <p className="text-xs text-green-600 font-cairo">إجمالي التكلفة</p>
+                <p className="text-lg font-bold text-green-700 font-sans">{formatNumber(totalOperationCost)} ريال</p>
+              </div>
             </div>
           </div>
-        ))}
+
+          {operations.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-700 font-cairo mb-2">لا توجد سجلات تشغيل</p>
+              <p className="text-sm text-gray-500 font-cairo mb-4">ابدأ بتسجيل تشغيل المعدات</p>
+              <Button variant="outline" onClick={onRecordOperation} className="font-cairo">
+                <Plus className="w-4 h-4 ml-2" />
+                تسجيل تشغيل
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">التاريخ</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">المعدة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الدوام</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الساعات</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">المعدل</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الإجمالي</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 font-cairo">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {operations.map((operation: any) => (
+                    <tr key={operation.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-cairo">
+                        {new Date(operation.date).toLocaleDateString('ar-SA')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-gray-900 font-cairo">{operation.equipmentNameAr}</p>
+                        <p className="text-xs text-gray-500 font-sans">{operation.equipmentCode}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="flex items-center gap-1 text-sm text-gray-700 font-cairo">
+                          <span>{shiftLabels[operation.shift].icon}</span>
+                          {operation.shiftAr}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-sans font-medium">
+                        {operation.hours} ساعة
+                      </td>
+                      <td className="px-4 py-3 text-sm font-sans">
+                        {formatNumber(operation.hourlyRate)} ريال/ساعة
+                      </td>
+                      <td className="px-4 py-3 text-sm font-sans font-bold text-green-600">
+                        {formatNumber(operation.totalCost)} ريال
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg"
+                            onClick={() => handleDeleteOperation(operation.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// ITEMS TAB (BOQ)
+// ============================================================================
+function ItemsTab({ data }: { data: any }) {
+  // Calculate totals
+  const totalAmount = data.items?.reduce((sum: number, item: any) => sum + item.totalPrice, 0) || 0
+  const totalQuantity = data.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
+  const completedItems = data.items?.filter((item: any) => item.status === 'completed').length || 0
+  const inProgressItems = data.items?.filter((item: any) => item.status === 'in-progress').length || 0
+
+  const categoryTotals = data.items?.reduce((acc: any, item: any) => {
+    if (!acc[item.category]) {
+      acc[item.category] = { count: 0, total: 0, categoryAr: item.categoryAr }
+    }
+    acc[item.category].count++
+    acc[item.category].total += item.totalPrice
+    return acc
+  }, {}) || {}
+
+  const statusConfig = {
+    pending: { label: 'معلق', color: 'bg-gray-100 text-gray-700' },
+    approved: { label: 'معتمد', color: 'bg-blue-100 text-blue-700' },
+    'in-progress': { label: 'قيد التنفيذ', color: 'bg-amber-100 text-amber-700' },
+    completed: { label: 'مكتمل', color: 'bg-green-100 text-green-700' },
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ar-SA').format(amount)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">إجمالي البنود</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{data.items?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-green-50 text-green-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">إجمالي المبلغ</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{formatMillions(totalAmount)}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">مكتمل</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{completedItems}/{data.items?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">قيد التنفيذ</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{inProgressItems}</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Items Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 font-cairo">جدول البنود (BOQ)</h2>
+            <p className="text-sm text-gray-500 font-cairo">Bill of Quantities - بنود الأعمال والأسعار</p>
+          </div>
+          <Button variant="primary" size="sm" className="font-cairo">
+            <Plus className="w-4 h-4 ml-2" />
+            إضافة بند
+          </Button>
+        </div>
+
+        {/* Category Summary */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 font-cairo">ملخص حسب الفئة</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Object.entries(categoryTotals).map(([key, val]: any) => (
+              <div key={key} className="bg-white p-3 rounded-lg">
+                <p className="text-sm text-gray-500 font-cairo">{val.categoryAr}</p>
+                <p className="text-lg font-bold text-gray-900 font-sans">{val.count} بنود</p>
+                <p className="text-sm font-medium text-[#2563eb] font-sans">{formatMillions(val.total)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الرمز</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">البند</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الفئة</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الوحدة</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الكمية</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">سعر الوحدة</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الإجمالي</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الحالة</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 font-cairo">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.items?.map((item: any, index: number) => (
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {item.code}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div>
+                      <p className="font-medium text-gray-900 font-cairo">{item.nameAr}</p>
+                      <p className="text-sm text-gray-500 font-cairo">{item.name}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 font-cairo">
+                      {item.categoryAr}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-gray-600 font-cairo">{item.unitAr}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-medium text-gray-900 font-sans">{formatNumber(item.quantity)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-gray-600 font-sans">{formatCurrency(item.unitPrice)} ريال</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-bold text-[#2563eb] font-sans">{formatCurrency(item.totalPrice)} ريال</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full font-cairo ${statusConfig[item.status].color}`}>
+                      {statusConfig[item.status].label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                        title="تعديل"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Total Summary */}
+        <div className="mt-6 p-4 bg-[#1a2b4a] rounded-xl text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-300 font-cairo">إجمالي قيمة البنود</p>
+              <p className="text-xs text-gray-400 font-cairo">{data.items?.length || 0} بنود</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold font-sans">{formatCurrency(totalAmount)} ريال</p>
+              <p className="text-sm text-gray-300 font-cairo">{formatMillions(totalAmount)} ريال</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// PRODUCTION TAB
+// ============================================================================
+function ProductionTab({ projectId, items }: { projectId: string; items: any[] }) {
+  const { data: records, isLoading } = useProductionRecords({ projectId })
+  const deleteMutation = useDeleteProduction()
+  const [filterMethod, setFilterMethod] = useState<'all' | 'tipper' | 'excavator' | 'hourly'>('all')
+  const [filterCrusher, setFilterCrusher] = useState<string>('all')
+  const [isTipperModalOpen, setIsTipperModalOpen] = useState(false)
+  const [isCrushersModalOpen, setIsCrushersModalOpen] = useState(false)
+  const crushers = getCrushers(projectId)
+
+  const methodConfig = {
+    tipper: { label: 'قلابات', color: 'bg-blue-100 text-blue-700', icon: Truck },
+    excavator: { label: 'رفع مساحي', color: 'bg-amber-100 text-amber-700', icon: Construction },
+    hourly: { label: 'بالساعة', color: 'bg-green-100 text-green-700', icon: Timer },
+  }
+
+  const filteredRecords = records?.filter(r =>
+    (filterMethod === 'all' || r.method === filterMethod) &&
+    (filterCrusher === 'all' || r.crusherId === filterCrusher || (!r.crusherId && filterCrusher === 'general'))
+  ) || []
+
+  // Calculate totals
+  const totalQuantity = filteredRecords
+    .filter(r => r.method === 'tipper' || r.method === 'excavator')
+    .reduce((sum, r) => sum + (r.quantity || 0), 0)
+
+  const totalTrips = filteredRecords
+    .filter(r => r.method === 'tipper')
+    .reduce((sum, r) => sum + (r.tripsCount || 0), 0)
+
+  const totalHours = filteredRecords
+    .filter(r => r.method === 'hourly')
+    .reduce((sum, r) => sum + (r.hours || 0), 0)
+
+  const handleDelete = (recordId: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+      deleteMutation.mutate(recordId)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">إجمالي السجلات</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{records?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600">
+              <Truck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">إجمالي الرحلات</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{totalTrips}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600">
+              <Construction className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">الكمية (م³)</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{formatNumber(totalQuantity)}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-lg bg-green-50 text-green-600">
+              <Timer className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-cairo">الساعات</p>
+              <p className="text-2xl font-bold text-gray-900 font-sans">{totalHours}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Production Records */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 font-cairo">سجلات الإنتاج</h2>
+            <p className="text-sm text-gray-500 font-cairo">Production Records - سجلات الإنتاج اليومي والشهري</p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTipperModalOpen(true)}
+              className="font-cairo"
+            >
+              إدارة القلابات
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCrushersModalOpen(true)}
+              className="font-cairo"
+            >
+              <Factory className="w-4 h-4 ml-1" />
+              إدارة الكسارات
+            </Button>
+            {crushers.length > 0 && (
+              <select
+                value={filterCrusher}
+                onChange={(e) => setFilterCrusher(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+              >
+                <option value="all">جميع الكسارات</option>
+                <option value="general">عام</option>
+                {crushers.map((crusher) => (
+                  <option key={crusher.id} value={crusher.id}>
+                    {crusher.nameAr}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              value={filterMethod}
+              onChange={(e) => setFilterMethod(e.target.value as any)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+            >
+              <option value="all">جميع الطرق</option>
+              <option value="tipper">قلابات</option>
+              <option value="excavator">رفع مساحي</option>
+              <option value="hourly">بالساعة</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Records Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">التاريخ</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الدوام</th>
+                {crushers.length > 0 && <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الكسارة</th>}
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الطريقة</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">البند</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">التفاصيل</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الكمية</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الملاحظات</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 font-cairo">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={crushers.length > 0 ? 9 : 8} className="px-4 py-12 text-center text-gray-500 font-cairo">
+                    لا توجد سجلات إنتاج
+                  </td>
+                </tr>
+              ) : (
+                filteredRecords.map((record: ProductionRecord) => {
+                  const config = methodConfig[record.method]
+                  const Icon = config.icon
+                  return (
+                    <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-600 font-cairo">
+                          {new Date(record.date).toLocaleDateString('ar-SA')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full font-cairo ${
+                          record.shift === 'day' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {record.shift === 'day' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+                          {record.shiftAr}
+                        </span>
+                      </td>
+                      {crushers.length > 0 && (
+                        <td className="px-4 py-3">
+                          {record.crusherId ? (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700 font-cairo`}>
+                              {record.crusherNameAr}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-500 font-cairo">عام</span>
+                          )}
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full font-cairo ${config.color}`}>
+                          {config.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 font-cairo">{record.itemNameAr || '-'}</p>
+                          <p className="text-xs text-gray-500 font-cairo">{record.itemName || '-'}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {record.method === 'tipper' && (
+                          <div className="text-sm text-gray-600 font-cairo">
+                            <span>{record.tripsCount} رحلة</span>
+                            {record.tipperVolume && (
+                              <span className="text-gray-500 text-xs mr-1">({record.tipperVolume} م³)</span>
+                            )}
+                          </div>
+                        )}
+                        {record.method === 'excavator' && (
+                          <span className="text-sm text-gray-600 font-cairo">رفع مساحي</span>
+                        )}
+                        {record.method === 'hourly' && (
+                          <div className="text-sm text-gray-600 font-cairo">
+                            <span>{record.hours} ساعة</span>
+                            {record.hourlyRate && (
+                              <span className="text-gray-500 text-xs mr-1">({record.hourlyRate} ريال/ساعة)</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {record.method === 'hourly' ? (
+                          <span className="text-sm font-bold text-green-600 font-sans">
+                            {((record.hours || 0) * (record.hourlyRate || 0)).toLocaleString('ar-SA')} ريال
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold text-blue-600 font-sans">
+                            {formatNumber(record.quantity || 0)} م³
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-gray-500 font-cairo max-w-xs truncate">
+                          {record.notesAr || '-'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                            onClick={() => handleDelete(record.id)}
+                            title="حذف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Tipper Types Management Modal */}
+      <TipperTypesModal
+        isOpen={isTipperModalOpen}
+        onClose={() => setIsTipperModalOpen(false)}
+      />
+
+      {/* Crushers Management Modal */}
+      <CrushersModal
+        isOpen={isCrushersModalOpen}
+        onClose={() => setIsCrushersModalOpen(false)}
+        projectId={projectId}
+      />
     </div>
   )
 }
@@ -649,6 +1303,10 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isProductionModalOpen, setIsProductionModalOpen] = useState(false)
+  const [isAssignEquipmentModalOpen, setIsAssignEquipmentModalOpen] = useState(false)
+  const [isEquipmentOperationModalOpen, setIsEquipmentOperationModalOpen] = useState(false)
 
   const { data, isLoading, error } = useProjectDetail(id || '')
 
@@ -691,18 +1349,31 @@ export default function ProjectDetailPage() {
 
   const headerActions = [
     {
+      label: 'Record Production',
+      labelAr: 'تسجيل إنتاج',
+      icon: <Plus className="w-4 h-4" />,
+      variant: 'primary' as const,
+      onClick: () => setIsProductionModalOpen(true),
+    },
+    {
       label: 'Edit',
       labelAr: 'تعديل',
       icon: <Edit className="w-4 h-4" />,
       variant: 'outline' as const,
-      onClick: () => console.log('Edit project'),
+      onClick: () => setIsModalOpen(true),
     },
     {
       label: 'Delete',
       labelAr: 'حذف',
       icon: <Trash2 className="w-4 h-4" />,
       variant: 'danger' as const,
-      onClick: () => console.log('Delete project'),
+      onClick: () => {
+        if (window.confirm('هل أنت متأكد من حذف هذا المشروع؟')) {
+          console.log('Delete project:', id)
+          // TODO: Implement delete functionality
+          navigate('/projects')
+        }
+      },
     },
   ]
 
@@ -715,13 +1386,24 @@ export default function ProjectDetailPage() {
       case 'team':
         return <TeamTab data={data} />
       case 'equipment':
-        return <EquipmentTab data={data} />
+        return (
+          <EquipmentTab
+            data={data}
+            onManageEquipment={() => setIsAssignEquipmentModalOpen(true)}
+            onRecordOperation={() => setIsEquipmentOperationModalOpen(true)}
+          />
+        )
+      case 'items':
+        return <ItemsTab data={data} />
+      case 'production':
+        return <ProductionTab projectId={id || ''} items={data.items || []} />
       default:
         return <OverviewTab data={data} />
     }
   }
 
   return (
+    <>
     <AppLayout titleAr={data.nameAr}>
       <PageHeader
         title={data.name}
@@ -783,5 +1465,35 @@ export default function ProjectDetailPage() {
       {/* Tab Content */}
       {renderTab()}
     </AppLayout>
+
+    {/* Edit Project Modal */}
+    <ProjectModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      project={data}
+    />
+
+    {/* Production Recording Modal */}
+    <ProductionModal
+      isOpen={isProductionModalOpen}
+      onClose={() => setIsProductionModalOpen(false)}
+      projectId={id || ''}
+      projectItems={data.items}
+    />
+
+    {/* Assign Equipment Modal */}
+    <AssignEquipmentModal
+      isOpen={isAssignEquipmentModalOpen}
+      onClose={() => setIsAssignEquipmentModalOpen(false)}
+      project={data}
+    />
+
+    {/* Equipment Operation Modal */}
+    <EquipmentOperationModal
+      isOpen={isEquipmentOperationModalOpen}
+      onClose={() => setIsEquipmentOperationModalOpen(false)}
+      projectId={id || ''}
+    />
+    </>
   )
 }
