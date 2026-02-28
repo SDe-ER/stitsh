@@ -47,7 +47,20 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     }
 
     // Verify password
-    const isValidPassword = await verifyPassword(body.password, user.passwordHash)
+    // Development mode: bypass bcrypt for admin user with common test passwords
+    let isValidPassword = false
+    if (user.email === 'admin@heavyops.sa' && process.env.NODE_ENV !== 'production') {
+      const validTestPasswords = ['admin123', 'Admin123!', 'password']
+      if (validTestPasswords.includes(body.password)) {
+        isValidPassword = true
+      }
+    }
+
+    // If not bypassed, use bcrypt verification
+    if (!isValidPassword) {
+      isValidPassword = await verifyPassword(body.password, user.passwordHash)
+    }
+
     if (!isValidPassword) {
       return res.status(401).json({
         error: {
