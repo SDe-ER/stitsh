@@ -533,14 +533,7 @@ async function fetchEmployees(filters?: EmployeeFilters): Promise<Employee[]> {
 }
 
 async function fetchEmployeeById(id: string): Promise<Employee> {
-  try {
-    const response = await fetch(`/api/employees/${id}`)
-    if (response.ok) return await response.json()
-  } catch (error) {
-    console.warn('API fetch failed, using mock data:', error)
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 400))
+  await new Promise((resolve) => setTimeout(resolve, 100))
   const employees = getEmployees()
   const employee = employees.find(e => e.id === id)
   if (!employee) throw new Error('Employee not found')
@@ -707,6 +700,11 @@ export function useEmployeeById(id: string) {
     queryKey: ['employee', id],
     queryFn: () => fetchEmployeeById(id),
     enabled: !!id,
+    retry: false,
+    initialData: () => {
+      const employees = getEmployees()
+      return employees.find(e => e.id === id)
+    },
     staleTime: 1 * 60 * 1000,
   })
 }

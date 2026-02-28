@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmployeeModal } from '@/components/modals/EmployeeModal'
 import { useEmployeeById } from '@/hooks/useEmployees'
+import { useAttendance, useAttendanceStats, attendanceStatusLabels } from '@/hooks/useAttendance'
 import { formatNumber } from '@/utils/format'
 import {
   User,
@@ -22,6 +23,8 @@ import {
   Home,
   Briefcase,
   Download,
+  TrendingUp,
+  Timer,
 } from 'lucide-react'
 
 type TabType = 'personal' | 'documents' | 'salary' | 'attendance'
@@ -71,8 +74,18 @@ export default function EmployeeProfilePage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('personal')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    // Default to current month
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  })
 
   const { data: employee, isLoading } = useEmployeeById(id || '')
+  const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendance({
+    employeeId: id || '',
+    month: selectedMonth,
+  })
+  const { data: attendanceStats, isLoading: isLoadingStats } = useAttendanceStats(id || '', selectedMonth)
 
   if (isLoading) {
     return (
@@ -570,19 +583,202 @@ export default function EmployeeProfilePage() {
         {/* Attendance Tab */}
         {activeTab === 'attendance' && (
           <div className="animate-fade-in">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-purple-600" />
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 font-cairo">سجل الحضور</h2>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 font-cairo">سجل الحضور</h2>
+
+              {/* Month Filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600 font-cairo">الشهر:</label>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm font-cairo focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
             </div>
 
-            <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200">
-              <div className="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
-                <Calendar className="w-10 h-10 text-purple-400" />
+            {/* Loading State */}
+            {(isLoadingAttendance || isLoadingStats) && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600 font-cairo">جاري تحميل البيانات...</p>
               </div>
-              <p className="text-xl font-bold text-gray-700 font-cairo mb-2">سجل الحضور قيد التطوير</p>
-              <p className="text-sm text-gray-500 font-cairo">سيتم إضافة ميزة تسجيل الحضور والانصراف قريباً</p>
+            )}
+
+            {/* Stats Cards */}
+            {attendanceStats && !isLoadingStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {/* Present Days */}
+                <div className="bg-gradient-to-br from-green-50 to-white rounded-xl border border-green-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                      <span className="text-2xl">✅</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">أيام الحضور</p>
+                      <p className="text-2xl font-bold text-gray-900 font-cairo">{attendanceStats.presentDays}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Absent Days */}
+                <div className="bg-gradient-to-br from-red-50 to-white rounded-xl border border-red-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                      <span className="text-2xl">❌</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">أيام الغياب</p>
+                      <p className="text-2xl font-bold text-gray-900 font-cairo">{attendanceStats.absentDays}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Late Days */}
+                <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                      <span className="text-2xl">⏰</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">أيام التأخير</p>
+                      <p className="text-2xl font-bold text-gray-900 font-cairo">{attendanceStats.lateDays}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attendance Rate */}
+                <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">نسبة الحضور</p>
+                      <p className="text-2xl font-bold text-gray-900 font-cairo">{attendanceStats.attendanceRate.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Stats */}
+            {attendanceStats && !isLoadingStats && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Timer className="w-5 h-5 text-[#2563eb]" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">إجمالي ساعات العمل</p>
+                      <p className="text-xl font-bold text-gray-900 font-cairo">{formatNumber(attendanceStats.totalWorkHours)} ساعة</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-cyan-50 to-white rounded-xl border border-cyan-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-cyan-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">متوسط الساعات اليومي</p>
+                      <p className="text-xl font-bold text-gray-900 font-cairo">{attendanceStats.averageHoursPerDay.toFixed(1)} ساعة</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-cairo">إجمالي الأيام</p>
+                      <p className="text-xl font-bold text-gray-900 font-cairo">{attendanceStats.totalDays} يوم</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Attendance Records Table */}
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">التاريخ</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">الحضور</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">الانصراف</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">ساعات العمل</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">الحالة</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {attendanceRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center">
+                          <Calendar className="w-16 h-16 text-gray-300 mb-4" />
+                          <p className="text-gray-600 font-cairo">لا توجد سجلات حضور لهذا الشهر</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    attendanceRecords.map((record) => {
+                      const statusConfig = attendanceStatusLabels[record.status]
+                      return (
+                        <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-cairo">
+                            {new Date(record.date).toLocaleDateString('ar-SA', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-sans">
+                            {record.checkIn || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-sans">
+                            {record.checkOut || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-bold font-sans text-gray-900">
+                            {record.workHours > 0 ? `${record.workHours} ساعة` : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusConfig.color} flex items-center gap-1 w-fit`}>
+                              <span>{statusConfig.icon}</span>
+                              <span className="font-cairo">{statusConfig.labelAr}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-cairo text-gray-500">
+                            {record.notesAr || '-'}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <p className="text-sm text-gray-500 font-cairo">الحالات:</p>
+              {Object.entries(attendanceStatusLabels).map(([key, value]) => (
+                <span key={key} className={`px-3 py-1 text-xs font-medium rounded-full ${value.color} flex items-center gap-1`}>
+                  <span>{value.icon}</span>
+                  <span className="font-cairo">{value.labelAr}</span>
+                </span>
+              ))}
             </div>
           </div>
         )}
