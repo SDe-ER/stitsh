@@ -11,6 +11,7 @@ import { equipmentRouter } from './routes/equipment.js'
 import { financialRouter } from './routes/financial.js'
 import { suppliersRouter } from './routes/suppliers.js'
 import { dashboardRouter } from './routes/dashboard.js'
+import { deductionsRouter } from './routes/deductions.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { notFoundHandler } from './middleware/notFoundHandler.js'
 
@@ -99,6 +100,7 @@ app.use('/api/equipment', equipmentRouter)
 app.use('/api/finance', financialRouter)
 app.use('/api/suppliers', suppliersRouter)
 app.use('/api/dashboard', dashboardRouter)
+app.use('/api/deductions', deductionsRouter)
 
 // ============================================================================
 // 404 NOT FOUND HANDLER

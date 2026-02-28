@@ -87,6 +87,19 @@ enum AttendanceStatus {
   HALF_DAY
 }
 
+enum DeductionType {
+  ABSENCE
+  PARTIAL_ABSENCE
+  ADVANCE
+  MANUAL
+}
+
+enum DeductionStatus {
+  PENDING
+  APPROVED
+  APPLIED
+}
+
 enum PurchaseOrderStatus {
   DRAFT
   PENDING
@@ -288,6 +301,8 @@ model Project {
   invoices        Invoice[]
   expenses        Expense[]
   purchaseOrders  PurchaseOrder[]
+  deductions      Deduction[]         @relation("DeductionProject")
+  costEntries     ProjectCostEntry[] @relation("ProjectCostEntries")
 
   @@map("projects")
   @@index([code])
@@ -375,6 +390,7 @@ model Employee {
   project    Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
   attendance Attendance[]
   payroll    Payroll[]
+  deductions Deduction[]
 
   @@map("employees")
   @@index([employeeId])
@@ -409,32 +425,90 @@ model Attendance {
 }
 
 model Payroll {
-  id            String    @id @default(cuid())
-  employeeId    String    @map("employee_id")
-  month         Int
-  year          Int
-  basicSalary   Float     @map("basic_salary")
-  housing       Float?    @default(0)
-  transportation Float?   @default(0)
-  overtime      Float?    @default(0)
-  deductions    Float?    @default(0)
-  bonuses       Float?    @default(0)
-  netSalary     Float     @map("net_salary")
-  isPaid        Boolean   @default(false) @map("is_paid")
-  paidAt        DateTime? @map("paid_at")
-  paymentMethod String?   @map("payment_method")
-  notes         String?
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id               String    @id @default(cuid())
+  employeeId       String    @map("employee_id")
+  month            Int
+  year             Int
+  basicSalary      Float     @map("basic_salary")
+  housing          Float?    @default(0)
+  transportation   Float?    @default(0)
+  overtime         Float?    @default(0)
+  deductionsAmount Float?    @default(0) @map("deductions_amount")
+  bonuses          Float?    @default(0)
+  netSalary        Float     @map("net_salary")
+  isPaid           Boolean   @default(false) @map("is_paid")
+  paidAt           DateTime? @map("paid_at")
+  paymentMethod    String?   @map("payment_method")
+  notes            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deductions Deduction[]
 
   @@map("payroll")
   @@unique([employeeId, month, year])
   @@index([employeeId])
   @@index([month, year])
   @@index([isPaid])
+}
+
+model Deduction {
+  id              String          @id @default(cuid())
+  employeeId      String          @map("employee_id")
+  payrollId       String?         @map("payroll_id")
+  projectId       String          @map("project_id")
+  type            DeductionType
+  status          DeductionStatus  @default(PENDING)
+  amount          Decimal         @db.Decimal(10, 2)
+  hours           Float?          @default(0)
+  minutes         Float?          @default(0)
+  date            DateTime        @db.Date
+  month           Int
+  year            Int
+  reason          String?
+  notes           String?
+  appliedAt       DateTime?       @map("applied_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payroll  Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  project  Project  @relation("DeductionProject", fields: [projectId], references: [id], onDelete: Restrict)
+  costEntry ProjectCostEntry?
+
+  @@map("deductions")
+  @@index([employeeId])
+  @@index([payrollId])
+  @@index([projectId])
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([month, year])
+}
+
+model ProjectCostEntry {
+  id          String    @id @default(cuid())
+  projectId   String    @map("project_id")
+  deductionId String    @unique @map("deduction_id")
+  category    String    @default("LABOR")
+  amount      Decimal   @db.Decimal(10, 2)
+  description String?
+  date        DateTime  @default(now()) @map("date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  project   Project   @relation("ProjectCostEntries", fields: [projectId], references: [id], onDelete: Cascade)
+  deduction Deduction @relation(fields: [deductionId], references: [id], onDelete: Cascade)
+
+  @@map("project_cost_entries")
+  @@index([projectId])
+  @@index([deductionId])
+  @@index([category])
+  @@index([date])
 }
 
 // ============================================================================
