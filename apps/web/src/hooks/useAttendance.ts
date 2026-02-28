@@ -85,56 +85,67 @@ function getDefaultAttendance(): AttendanceRecord[] {
   const today = new Date()
   const records: AttendanceRecord[] = []
 
-  // Generate attendance records for the current month
-  const year = today.getFullYear()
-  const month = today.getMonth()
+  // Generate attendance records for the current month and 2 previous months
+  const currentYear = today.getFullYear()
+  const currentMonth = today.getMonth()
 
-  for (let day = 1; day <= today.getDate(); day++) {
-    const date = new Date(year, month, day)
-    const dateStr = date.toISOString().split('T')[0]
-    const dayOfWeek = date.getDay()
+  // Generate for current month and 2 previous months
+  for (let monthOffset = 0; monthOffset <= 2; monthOffset++) {
+    const month = currentMonth - monthOffset
+    const year = month < 0 ? currentYear - 1 : currentYear
+    const actualMonth = month < 0 ? month + 12 : month
 
-    // Skip weekends (Friday = 5, Saturday = 6 in Saudi Arabia)
-    if (dayOfWeek === 5 || dayOfWeek === 6) {
-      continue
+    // Get days in this month
+    const daysInMonth = new Date(year, actualMonth + 1, 0).getDate()
+    const maxDay = monthOffset === 0 ? today.getDate() : daysInMonth
+
+    for (let day = 1; day <= maxDay; day++) {
+      const date = new Date(year, actualMonth, day)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayOfWeek = date.getDay()
+
+      // Skip weekends (Friday = 5, Saturday = 6 in Saudi Arabia)
+      if (dayOfWeek === 5 || dayOfWeek === 6) {
+        continue
+      }
+
+      // Random status for demo (weighted towards present)
+      const rand = Math.random()
+      let status: AttendanceStatus
+      let checkIn = '07:55'
+      let checkOut = '17:05'
+      let workHours = 9
+
+      if (rand < 0.85) {
+        status = 'present'
+      } else if (rand < 0.90) {
+        status = 'late'
+        checkIn = '08:15'
+        workHours = 8.75
+      } else if (rand < 0.94) {
+        status = 'half-day'
+        checkOut = '13:00'
+        workHours = 5
+      } else if (rand < 0.97) {
+        status = 'leave'
+      } else {
+        status = 'absent'
+      }
+
+      records.push({
+        id: `att-${dateStr}`,
+        employeeId: 'emp-1',
+        date: dateStr,
+        checkIn: status !== 'absent' && status !== 'leave' ? checkIn : '',
+        checkOut: status !== 'absent' && status !== 'leave' ? checkOut : undefined,
+        status,
+        workHours: status === 'absent' || status === 'leave' ? 0 : workHours,
+        notes: status === 'leave' ? 'إجازة سنوية' : undefined,
+        notesAr: status === 'leave' ? 'إجازة سنوية' : undefined,
+        createdAt: dateStr,
+        updatedAt: dateStr,
+      })
     }
-
-    // Random status for demo (weighted towards present)
-    const rand = Math.random()
-    let status: AttendanceStatus
-    let checkIn = '07:55'
-    let checkOut = '17:05'
-    let workHours = 9
-
-    if (rand < 0.85) {
-      status = 'present'
-    } else if (rand < 0.90) {
-      status = 'late'
-      checkIn = '08:15'
-      workHours = 8.75
-    } else if (rand < 0.94) {
-      status = 'half-day'
-      checkOut = '13:00'
-      workHours = 5
-    } else if (rand < 0.97) {
-      status = 'leave'
-    } else {
-      status = 'absent'
-    }
-
-    records.push({
-      id: `att-${dateStr}`,
-      employeeId: 'emp-1',
-      date: dateStr,
-      checkIn: status !== 'absent' && status !== 'leave' ? checkIn : '',
-      checkOut: status !== 'absent' && status !== 'leave' ? checkOut : undefined,
-      status,
-      workHours: status === 'absent' || status === 'leave' ? 0 : workHours,
-      notes: status === 'leave' ? 'إجازة سنوية' : undefined,
-      notesAr: status === 'leave' ? 'إجازة سنوية' : undefined,
-      createdAt: dateStr,
-      updatedAt: dateStr,
-    })
   }
 
   return records
