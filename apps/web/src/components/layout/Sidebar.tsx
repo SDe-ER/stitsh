@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 interface SidebarProps {
   isOpen?: boolean
@@ -15,6 +16,7 @@ interface MenuItem {
   path: string
   badge?: number
   alert?: boolean
+  subItems?: { id: string; label: string; labelAr: string; path: string }[]
 }
 
 const menuItems: MenuItem[] = [
@@ -23,14 +25,38 @@ const menuItems: MenuItem[] = [
   { id: 'equipment', label: 'الأسطول والمعدات', labelAr: 'الأسطول', icon: '🚛', path: '/equipment', alert: true },
   { id: 'equipment-ops', label: 'تشغيل المعدات', labelAr: 'تشغيل المعدات', icon: '⚙️', path: '/equipment/operations' },
   { id: 'hr', label: 'الموارد البشرية', labelAr: 'الموظفين', icon: '👷', path: '/hr', badge: 3 },
-  { id: 'finance', label: 'المالية', labelAr: 'المالية', icon: '💰', path: '/finance' },
-  { id: 'suppliers', label: 'الموردون والعملاء', labelAr: 'الموردون', icon: '🤝', path: '/suppliers' },
+  {
+    id: 'finance',
+    label: 'المالية',
+    labelAr: 'المالية',
+    icon: '💰',
+    path: '/finance',
+    subItems: [
+      { id: 'finance-overview', label: 'Overview', labelAr: 'نظرة عامة', path: '/finance' },
+      { id: 'finance-invoices', label: 'Invoices', labelAr: 'الفواتير', path: '/finance/invoices' },
+      { id: 'finance-expenses', label: 'Expenses', labelAr: 'المصاريف', path: '/finance/expenses' },
+      { id: 'finance-audit', label: 'Audit Report', labelAr: 'تقرير التدقيق', path: '/finance/audit' },
+    ],
+  },
+  {
+    id: 'suppliers',
+    label: 'الموردون والعملاء',
+    labelAr: 'الموردون',
+    icon: '🤝',
+    path: '/suppliers',
+    subItems: [
+      { id: 'suppliers-vendors', label: 'Suppliers', labelAr: 'الموردون', path: '/suppliers/vendors' },
+      { id: 'suppliers-clients', label: 'Clients', labelAr: 'العملاء', path: '/suppliers/clients' },
+    ],
+  },
   { id: 'analytics', label: 'التحليلات المتقدمة', labelAr: 'التحليلات', icon: '🤖', path: '/analytics' },
   { id: 'settings', label: 'الإعدادات', labelAr: 'الإعدادات', icon: '⚙️', path: '/settings' },
 ]
 
 export function Sidebar({ isOpen = true, isMobile = false, onClose }: SidebarProps) {
   const location = useLocation()
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+
   const [user] = useState({
     name: 'أحمد الرشيد',
     nameEn: 'Ahmed Al-Rashid',
@@ -39,19 +65,41 @@ export function Sidebar({ isOpen = true, isMobile = false, onClose }: SidebarPro
     avatar: 'https://ui-avatars.com/api/?name=Ahmed+Al-Rashid&background=2563eb&color=fff',
   })
 
-  const activeItem = menuItems.find((item) => {
-    // Exact match for most paths
-    if (location.pathname === item.path) return true
-    // Special case for equipment-ops - should not match when on main equipment page
-    if (item.id === 'equipment-ops' && location.pathname === '/equipment/operations') return true
-    // Equipment path should not match equipment operations
-    if (item.id === 'equipment' && location.pathname.startsWith('/equipment') && !location.pathname.startsWith('/equipment/operations')) return true
-    // HR routes
-    if (item.id === 'hr' && location.pathname.startsWith('/hr')) return true
-    // Default startsWith behavior for others
-    if (item.id !== 'equipment' && item.id !== 'equipment-ops' && item.id !== 'hr' && location.pathname.startsWith(item.path)) return true
-    return false
-  })
+  const toggleExpand = (id: string) => {
+    setExpandedItems((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const getActiveItem = () => {
+    // Check sub-items first
+    for (const item of menuItems) {
+      if (item.subItems) {
+        const activeSubItem = item.subItems.find((sub) => sub.path === location.pathname)
+        if (activeSubItem) return { mainItem: item.id, subItem: activeSubItem.id }
+      }
+    }
+
+    // Check main items
+    for (const item of menuItems) {
+      if (item.id === 'equipment-ops' && location.pathname === '/equipment/operations') return { mainItem: item.id }
+      if (item.id === 'equipment' && location.pathname.startsWith('/equipment') && !location.pathname.startsWith('/equipment/operations')) return { mainItem: item.id }
+      if (item.id === 'hr' && location.pathname.startsWith('/hr')) return { mainItem: item.id }
+      if (item.id === 'finance' && location.pathname.startsWith('/finance')) return { mainItem: item.id }
+      if (item.subItems && location.pathname.startsWith(item.path)) return { mainItem: item.id }
+      if (!item.subItems && location.pathname === item.path) return { mainItem: item.id }
+    }
+
+    return null
+  }
+
+  const activeItem = getActiveItem()
 
   return (
     <aside
@@ -90,22 +138,42 @@ export function Sidebar({ isOpen = true, isMobile = false, onClose }: SidebarPro
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => {
-              const isActive = activeItem?.id === item.id
+              const hasSubItems = item.subItems && item.subItems.length > 0
+              const isActive = activeItem?.mainItem === item.id
+              const isExpanded = expandedItems.has(item.id)
+
               return (
                 <li key={item.id}>
-                  <Link
-                    to={item.path}
+                  {/* Main menu item */}
+                  <div
                     onClick={() => {
-                      if (isMobile && onClose) onClose()
+                      if (hasSubItems) {
+                        toggleExpand(item.id)
+                      } else {
+                        if (isMobile && onClose) onClose()
+                      }
                     }}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
                       isActive
                         ? 'bg-[#2563eb] text-white shadow-lg'
                         : 'text-gray-300 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    <span className="text-xl flex-shrink-0">{item.icon}</span>
-                    <span className="flex-1 font-medium">{item.label}</span>
+                    <Link
+                      to={item.path}
+                      onClick={(e) => {
+                        if (hasSubItems) {
+                          e.preventDefault()
+                          toggleExpand(item.id)
+                        } else if (isMobile && onClose) {
+                          onClose()
+                        }
+                      }}
+                      className="flex items-center gap-3 flex-1"
+                    >
+                      <span className="text-xl flex-shrink-0">{item.icon}</span>
+                      <span className="flex-1 font-medium">{item.label}</span>
+                    </Link>
 
                     {/* Badge for alerts/notifications */}
                     {item.alert && (
@@ -117,7 +185,45 @@ export function Sidebar({ isOpen = true, isMobile = false, onClose }: SidebarPro
                         {item.badge}
                       </span>
                     )}
-                  </Link>
+
+                    {/* Expand/collapse icon for sub-items */}
+                    {hasSubItems && (
+                      <button className="p-1 hover:bg-white/10 rounded">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sub-items */}
+                  {hasSubItems && isExpanded && (
+                    <ul className="mr-6 mt-1 space-y-1">
+                      {item.subItems!.map((subItem) => {
+                        const isSubActive = activeItem?.subItem === subItem.id
+                        return (
+                          <li key={subItem.id}>
+                            <Link
+                              to={subItem.path}
+                              onClick={() => {
+                                if (isMobile && onClose) onClose()
+                              }}
+                              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                isSubActive
+                                  ? 'bg-[#2563eb]/30 text-white'
+                                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                              <span className="text-sm font-medium">{subItem.labelAr}</span>
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </li>
               )
             })}

@@ -12,6 +12,13 @@ import { EquipmentOperationsPage } from '@/pages/EquipmentOperations'
 import { EmployeesListPage } from '@/pages/EmployeesList'
 import { EmployeeProfilePage } from '@/pages/EmployeeProfile'
 import { PayrollPage } from '@/pages/Payroll'
+import {
+  FinanceOverviewPage,
+  InvoicesPage,
+  ExpensesPage,
+  AuditReportPage,
+} from '@/pages/Finance'
+import { ClientsPage, SuppliersPage } from '@/pages/Suppliers'
 
 export default function AppRouter() {
   return (
@@ -33,6 +40,15 @@ export default function AppRouter() {
       <Route path="/hr/employees" element={<EmployeesListPage />} />
       <Route path="/hr/employees/:id" element={<EmployeeProfilePage />} />
       <Route path="/hr/payroll" element={<PayrollPage />} />
+      {/* Finance Routes */}
+      <Route path="/finance" element={<FinanceOverviewPage />} />
+      <Route path="/finance/invoices" element={<InvoicesPage />} />
+      <Route path="/finance/expenses" element={<ExpensesPage />} />
+      <Route path="/finance/audit" element={<AuditReportPage />} />
+      {/* Suppliers & Clients Routes */}
+      <Route path="/suppliers" element={<Navigate to="/suppliers/vendors" replace />} />
+      <Route path="/suppliers/vendors" element={<SuppliersPage />} />
+      <Route path="/suppliers/clients" element={<ClientsPage />} />
       {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}
