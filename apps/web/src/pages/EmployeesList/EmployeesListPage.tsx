@@ -28,6 +28,7 @@ import {
   Edit,
   Trash2,
   Calendar,
+  DollarSign,
 } from 'lucide-react'
 
 export default function EmployeesListPage() {
@@ -78,6 +79,13 @@ export default function EmployeesListPage() {
               setEditEmployee(undefined)
               setIsModalOpen(true)
             },
+          },
+          {
+            label: 'Salaries',
+            labelAr: 'الرواتب',
+            icon: <DollarSign className="w-4 h-4" />,
+            variant: 'outline' as const,
+            onClick: () => navigate('/hr/payroll'),
           },
         ]}
       />

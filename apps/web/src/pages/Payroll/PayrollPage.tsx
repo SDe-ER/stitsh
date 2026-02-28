@@ -2,7 +2,17 @@ import { useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
-import { useEmployees, useSalaries, useUpdateSalaryPayment } from '@/hooks/useEmployees'
+import {
+  useEmployees,
+  useSalaries,
+  useUpdateSalaryPayment,
+  useCreateSalary,
+  useUpdateSalary,
+  useDeleteSalary,
+  paymentMethodLabels,
+  type PaymentMethod,
+  type SalaryRecord,
+} from '@/hooks/useEmployees'
 import { formatNumber } from '@/utils/format'
 import {
   DollarSign,
@@ -13,6 +23,12 @@ import {
   Calendar,
   Send,
   AlertCircle,
+  Edit,
+  Trash2,
+  X,
+  Download,
+  Plus,
+  Printer,
 } from 'lucide-react'
 
 const months = [
@@ -35,9 +51,25 @@ const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
 
 const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1]
 
+interface PayrollItem {
+  employee: any
+  basicSalary: number
+  allowances: number
+  deductions: number
+  absences: number
+  netSalary: number
+  paymentStatus: 'pending' | 'paid' | 'partial'
+  paymentDate?: string
+  paymentMethod?: PaymentMethod
+  salaryRecordId?: string
+  notes?: string
+}
+
 export default function PayrollPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSalary, setEditingSalary] = useState<PayrollItem | null>(null)
 
   const { data: employees = [] } = useEmployees({ status: 'active' })
   const { data: salaries = [] } = useSalaries(
@@ -45,19 +77,25 @@ export default function PayrollPage() {
     selectedYear
   )
   const updatePaymentMutation = useUpdateSalaryPayment()
+  const createSalaryMutation = useCreateSalary()
+  const updateSalaryMutation = useUpdateSalary()
+  const deleteSalaryMutation = useDeleteSalary()
 
   // Create salary records for employees who don't have one for this month
-  const payrollData = employees.map((emp) => {
-    const existingSalary = salaries.find(s => s.employeeId === emp.id)
+  const payrollData: PayrollItem[] = employees.map((emp) => {
+    const existingSalary = salaries.find((s) => s.employeeId === emp.id)
     return {
       employee: emp,
       basicSalary: emp.salary,
-      allowances: 0,
-      deductions: 0,
-      netSalary: emp.salary,
+      allowances: existingSalary?.allowances || 0,
+      deductions: existingSalary?.deductions || 0,
+      absences: existingSalary?.absences || 0,
+      netSalary: existingSalary?.netSalary || emp.salary,
       paymentStatus: existingSalary?.paymentStatus || 'pending',
       paymentDate: existingSalary?.paymentDate || '',
+      paymentMethod: existingSalary?.paymentMethod,
       salaryRecordId: existingSalary?.id,
+      notes: existingSalary?.notes,
     }
   })
 
@@ -65,8 +103,8 @@ export default function PayrollPage() {
   const totalAllowances = payrollData.reduce((sum, item) => sum + item.allowances, 0)
   const totalDeductions = payrollData.reduce((sum, item) => sum + item.deductions, 0)
   const totalNetSalary = payrollData.reduce((sum, item) => sum + item.netSalary, 0)
-  const paidCount = payrollData.filter(item => item.paymentStatus === 'paid').length
-  const pendingCount = payrollData.filter(item => item.paymentStatus === 'pending').length
+  const paidCount = payrollData.filter((item) => item.paymentStatus === 'paid').length
+  const pendingCount = payrollData.filter((item) => item.paymentStatus === 'pending').length
 
   const handleSendPayment = (salaryId: string) => {
     updatePaymentMutation.mutate({
@@ -77,7 +115,7 @@ export default function PayrollPage() {
   }
 
   const handleSendAllPayments = () => {
-    const pendingItems = payrollData.filter(item => item.paymentStatus === 'pending')
+    const pendingItems = payrollData.filter((item) => item.paymentStatus === 'pending')
     pendingItems.forEach((item, index) => {
       setTimeout(() => {
         if (item.salaryRecordId) {
@@ -85,6 +123,151 @@ export default function PayrollPage() {
         }
       }, index * 100)
     })
+  }
+
+  const handleEdit = (item: PayrollItem) => {
+    setEditingSalary(item)
+    setIsModalOpen(true)
+  }
+
+  const handleSaveSalary = (data: {
+    allowances: number
+    deductions: number
+    absences: number
+    paymentMethod: PaymentMethod
+    notes: string
+  }) => {
+    if (!editingSalary) return
+
+    const netSalary =
+      editingSalary.basicSalary +
+      data.allowances -
+      data.deductions -
+      (data.absences * editingSalary.basicSalary) / 30
+
+    if (editingSalary.salaryRecordId) {
+      // Update existing salary record
+      updateSalaryMutation.mutate({
+        salaryId: editingSalary.salaryRecordId,
+        data: {
+          allowances: data.allowances,
+          deductions: data.deductions,
+          absences: data.absences,
+          paymentMethod: data.paymentMethod,
+          notes: data.notes,
+          netSalary,
+        },
+      })
+    } else {
+      // Create new salary record
+      createSalaryMutation.mutate({
+        employeeId: editingSalary.employee.id,
+        month: `${selectedYear}-${selectedMonth}`,
+        year: selectedYear,
+        basicSalary: editingSalary.basicSalary,
+        allowances: data.allowances,
+        deductions: data.deductions,
+        absences: data.absences,
+        netSalary,
+        paymentStatus: 'pending',
+        paymentMethod: data.paymentMethod,
+        notes: data.notes,
+      })
+    }
+    setIsModalOpen(false)
+    setEditingSalary(null)
+  }
+
+  const handleDelete = (salaryId: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+      deleteSalaryMutation.mutate(salaryId)
+    }
+  }
+
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const monthName = months.find((m) => m.value === selectedMonth)?.labelAr
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <title>كشف الرواتب - ${monthName} ${selectedYear}</title>
+        <style>
+          body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .header h1 { margin: 0; color: #333; }
+          .header p { margin: 5px 0; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 12px; text-align: right; border: 1px solid #ddd; }
+          th { background: #f5f5f5; font-weight: bold; }
+          .total { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+          .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; }
+          .footer { margin-top: 40px; text-align: center; color: #666; font-size: 12px; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>HeavyOps ERP</h1>
+          <p>نظام إدارة المشاريع</p>
+          <h2>كشف الرواتب - ${monthName} ${selectedYear}</h2>
+          <p>تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SA')}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الموظف</th>
+              <th>الراتب الأساسي</th>
+              <th>الإضافي</th>
+              <th>الخصومات</th>
+              <th>الصافي</th>
+              <th>طريقة الدفع</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payrollData
+              .map(
+                (item) => `
+              <tr>
+                <td>${item.employee.nameAr}<br><small>${item.employee.name}</small></td>
+                <td>${formatNumber(item.basicSalary)}</td>
+                <td style="color: green;">${formatNumber(item.allowances)}</td>
+                <td style="color: red;">${formatNumber(item.deductions)}</td>
+                <td><strong>${formatNumber(item.netSalary)}</strong></td>
+                <td>${item.paymentMethod ? paymentMethodLabels[item.paymentMethod].labelAr : '-'}</td>
+                <td>${item.paymentStatus === 'paid' ? '✅ مدفوع' : '⏳ معلق'}</td>
+              </tr>
+            `
+              )
+              .join('')}
+          </tbody>
+        </table>
+        <div class="total">
+          <div class="total-row">
+            <span>الإجمالي:</span>
+            <span>${formatNumber(totalNetSalary)} ريال</span>
+          </div>
+        </div>
+        <div class="footer">
+          <p>تم إنشاء هذا الكشف بواسطة HeavyOps ERP</p>
+          <p>© ${new Date().getFullYear()} HeavyOps. جميع الحقوق محفوظة.</p>
+        </div>
+        <div class="no-print" style="text-align: center; margin-top: 30px;">
+          <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer;">طباعة</button>
+          <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; margin-right: 10px;">إغلاق</button>
+        </div>
+      </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   return (
@@ -95,9 +278,25 @@ export default function PayrollPage() {
         subtitle="Salary Management"
         subtitleAr="إدارة الرواتب"
         breadcrumbs={[
-          { label: 'Home', labelAr: 'ال الرئيسية', path: '/' },
+          { label: 'Home', labelAr: 'الرئيسية', path: '/' },
           { label: 'HR', labelAr: 'الموارد البشرية', path: '/hr' },
           { label: 'Payroll', labelAr: 'الرواتب' },
+        ]}
+        actions={[
+          {
+            label: 'Export PDF',
+            labelAr: 'تصدير PDF',
+            icon: <Download className="w-4 h-4" />,
+            variant: 'outline' as const,
+            onClick: handleExportPDF,
+          },
+          {
+            label: 'Print',
+            labelAr: 'طباعة',
+            icon: <Printer className="w-4 h-4" />,
+            variant: 'outline' as const,
+            onClick: () => window.print(),
+          },
         ]}
       />
 
@@ -242,8 +441,9 @@ export default function PayrollPage() {
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الراتب الأساسي</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الإضافي</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الخصومات</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الغيابات</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الصافي</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">تاريخ الدفع</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">طريقة الدفع</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 font-cairo">الحالة</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 font-cairo">إجراء</th>
               </tr>
@@ -268,9 +468,16 @@ export default function PayrollPage() {
                     <td className="px-4 py-3 text-sm font-sans">{formatNumber(item.basicSalary)}</td>
                     <td className="px-4 py-3 text-sm font-sans text-green-600">{formatNumber(item.allowances)}</td>
                     <td className="px-4 py-3 text-sm font-sans text-red-600">{formatNumber(item.deductions)}</td>
+                    <td className="px-4 py-3 text-sm font-sans text-amber-600">{item.absences} يوم</td>
                     <td className="px-4 py-3 text-sm font-bold font-sans">{formatNumber(item.netSalary)}</td>
-                    <td className="px-4 py-3 text-sm font-cairo">
-                      {item.paymentDate ? new Date(item.paymentDate).toLocaleDateString('ar-SA') : '-'}
+                    <td className="px-4 py-3">
+                      {item.paymentMethod ? (
+                        <span className="text-sm font-cairo">
+                          {paymentMethodLabels[item.paymentMethod].icon} {paymentMethodLabels[item.paymentMethod].labelAr}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400 font-cairo">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full font-cairo ${statusConfig.color}`}>
@@ -279,28 +486,40 @@ export default function PayrollPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {item.paymentStatus === 'pending' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (item.salaryRecordId) {
-                              handleSendPayment(item.salaryRecordId)
-                            }
-                          }}
-                          disabled={updatePaymentMutation.isPending}
-                          className="font-cairo text-xs"
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg"
+                          onClick={() => handleEdit(item)}
+                          title="تعديل"
                         >
-                          <Send className="w-3 h-3 ml-1" />
-                          إرسال
-                        </Button>
-                      )}
-                      {item.paymentStatus === 'paid' && (
-                        <span className="text-xs text-green-600 font-cairo flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          تم الدفع
-                        </span>
-                      )}
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        {item.salaryRecordId && (
+                          <button
+                            className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg"
+                            onClick={() => handleDelete(item.salaryRecordId!)}
+                            title="حذف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {item.paymentStatus === 'pending' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (item.salaryRecordId) {
+                                handleSendPayment(item.salaryRecordId)
+                              }
+                            }}
+                            disabled={updatePaymentMutation.isPending}
+                            className="font-cairo text-xs"
+                          >
+                            <Send className="w-3 h-3 ml-1" />
+                            إرسال
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -319,6 +538,141 @@ export default function PayrollPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Salary Modal */}
+      {isModalOpen && editingSalary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold font-cairo">تعديل بيانات الراتب</h3>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false)
+                  setEditingSalary(null)
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="font-medium font-cairo">{editingSalary.employee.nameAr}</p>
+                <p className="text-sm text-gray-500 font-sans">{editingSalary.employee.name}</p>
+                <p className="text-sm text-gray-400 font-sans">{editingSalary.employee.employeeNumber}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 font-cairo mb-1">
+                  البدلات والإضافات
+                </label>
+                <input
+                  type="number"
+                  defaultValue={editingSalary.allowances}
+                  id="allowances-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 font-cairo mb-1">
+                  الخصومات
+                </label>
+                <input
+                  type="number"
+                  defaultValue={editingSalary.deductions}
+                  id="deductions-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 font-cairo mb-1">
+                  أيام الغياب
+                </label>
+                <input
+                  type="number"
+                  defaultValue={editingSalary.absences}
+                  id="absences-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 font-cairo mb-1">
+                  طريقة الدفع
+                </label>
+                <select
+                  defaultValue={editingSalary.paymentMethod || 'madad'}
+                  id="payment-method-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+                >
+                  {Object.entries(paymentMethodLabels).map(([key, { icon, labelAr }]) => (
+                    <option key={key} value={key}>
+                      {icon} {labelAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 font-cairo mb-1">
+                  ملاحظات
+                </label>
+                <textarea
+                  defaultValue={editingSalary.notes || ''}
+                  id="notes-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563eb] focus:border-transparent font-cairo"
+                  rows={2}
+                  placeholder="أي ملاحظات إضافية..."
+                />
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-cairo">الصافي المتوقع:</span>
+                  <span className="text-lg font-bold text-blue-700 font-sans" id="preview-net-salary">
+                    {formatNumber(editingSalary.netSalary)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 p-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsModalOpen(false)
+                  setEditingSalary(null)
+                }}
+                className="flex-1 font-cairo"
+              >
+                إلغاء
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const allowances = Number((document.getElementById('allowances-input') as HTMLInputElement)?.value) || 0
+                  const deductions = Number((document.getElementById('deductions-input') as HTMLInputElement)?.value) || 0
+                  const absences = Number((document.getElementById('absences-input') as HTMLInputElement)?.value) || 0
+                  const paymentMethod = (document.getElementById('payment-method-input') as HTMLSelectElement)?.value as PaymentMethod
+                  const notes = (document.getElementById('notes-input') as HTMLTextAreaElement)?.value || ''
+
+                  handleSaveSalary({ allowances, deductions, absences, paymentMethod, notes })
+                }}
+                className="flex-1 font-cairo"
+              >
+                حفظ
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

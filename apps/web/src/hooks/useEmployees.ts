@@ -100,6 +100,8 @@ export interface EmployeeFilters {
   search?: string
 }
 
+export type PaymentMethod = 'madad' | 'transfer' | 'cash'
+
 export interface SalaryRecord {
   id: string
   employeeId: string
@@ -108,11 +110,19 @@ export interface SalaryRecord {
   basicSalary: number
   allowances: number
   deductions: number
+  absences: number  // Days absent
   netSalary: number
   paymentDate?: string
   paymentStatus: 'pending' | 'paid' | 'partial'
+  paymentMethod?: PaymentMethod
   notes?: string
   createdAt: string
+}
+
+export const paymentMethodLabels: Record<PaymentMethod, { label: string; labelAr: string; icon: string }> = {
+  madad: { label: 'Madad', labelAr: 'مدد', icon: '🏦' },
+  transfer: { label: 'Bank Transfer', labelAr: 'تحويل بنكي', icon: '🏧' },
+  cash: { label: 'Cash', labelAr: 'نقداً', icon: '💵' },
 }
 
 // Status labels
@@ -796,6 +806,79 @@ export function useUpdateSalaryPayment() {
     onError: (error) => {
       console.error('Update salary error:', error)
       toast.error('فشل تحديث حالة الدفع')
+    },
+  })
+}
+
+export function useCreateSalary() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: Omit<SalaryRecord, 'id' | 'createdAt'>) => {
+      const salaries = getSalaries()
+      const newSalary: SalaryRecord = {
+        ...data,
+        id: `sal-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      }
+      salaries.push(newSalary)
+      saveSalaries(salaries)
+      return Promise.resolve(newSalary)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salaries'] })
+      toast.success('تم إضافة السجل بنجاح')
+    },
+  })
+}
+
+export function useUpdateSalary() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ salaryId, data }: { salaryId: string; data: Partial<SalaryRecord> }) => {
+      const salaries = getSalaries()
+      const index = salaries.findIndex(s => s.id === salaryId)
+      if (index === -1) throw new Error('Salary record not found')
+
+      // Recalculate net salary if allowances or deductions changed
+      let netSalary = salaries[index].netSalary
+      if (data.allowances !== undefined || data.deductions !== undefined || data.basicSalary !== undefined) {
+        const basicSalary = data.basicSalary ?? salaries[index].basicSalary
+        const allowances = data.allowances ?? salaries[index].allowances
+        const deductions = data.deductions ?? salaries[index].deductions
+        netSalary = basicSalary + allowances - deductions
+      }
+
+      salaries[index] = {
+        ...salaries[index],
+        ...data,
+        netSalary,
+      }
+
+      saveSalaries(salaries)
+      return salaries[index]
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salaries'] })
+      toast.success('تم تحديث السجل بنجاح')
+    },
+  })
+}
+
+export function useDeleteSalary() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (salaryId: string) => {
+      const salaries = getSalaries()
+      const filtered = salaries.filter(s => s.id !== salaryId)
+      saveSalaries(filtered)
+      return Promise.resolve(salaryId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salaries'] })
+      toast.success('تم حذف السجل بنجاح')
     },
   })
 }
