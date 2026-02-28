@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Upload, X, FileText, Image as ImageIcon, Eye, AlertCircle, Crop, Loader2 } from 'lucide-react'
 import { Button } from './Button'
 import { ImageCropModal } from './ImageCropModal'
@@ -12,6 +12,31 @@ interface FileUploadProps {
   maxSize?: number // in MB
   imageType?: 'photo' | 'idCard' | 'residencyCard' | 'passportCard' // for dimension validation and display
   onIdCardDataExtracted?: (data: { number?: string; expiryDate?: string }) => void
+}
+
+/**
+ * Convert a File or Blob to Base64 string
+ */
+function fileToBase64(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      // Remove data URL prefix if needed (e.g., "data:image/jpeg;base64,")
+      resolve(result)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+/**
+ * Convert a blob URL to Base64 string
+ */
+async function blobUrlToBase64(blobUrl: string): Promise<string> {
+  const response = await fetch(blobUrl)
+  const blob = await response.blob()
+  return fileToBase64(blob)
 }
 
 // Dimension specifications
@@ -52,6 +77,17 @@ export function FileUpload({
   // Crop modal state
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
+
+  // Update preview when value changes (handle Base64 strings)
+  useEffect(() => {
+    if (value) {
+      // If value is Base64, use it directly (it can be used as img src)
+      // If value is blob URL, use it as-is
+      setPreview(value)
+    } else {
+      setPreview(null)
+    }
+  }, [value])
 
   // OCR function to extract ID card data
   const extractIdCardData = async (imageUrl: string, cardType: 'residencyCard' | 'passportCard') => {
@@ -177,7 +213,10 @@ export function FileUpload({
     setDimensions(null)
 
     try {
-      // Create a local preview URL for immediate display
+      // Convert file to Base64 for permanent storage
+      const base64 = await fileToBase64(file)
+
+      // Create a local preview URL for immediate display (faster than decoding Base64)
       const localUrl = URL.createObjectURL(file)
 
       // Check image dimensions if it's an image type with dimension requirements
@@ -187,9 +226,9 @@ export function FileUpload({
           const isCorrectRatio = checkImageDimensions(img)
 
           if (isCorrectRatio) {
-            // Image has correct dimensions, use it directly
+            // Image has correct dimensions, save Base64 and show preview
             setPreview(localUrl)
-            onChange(localUrl)
+            onChange(base64) // Save Base64 instead of blob URL
             setIsUploading(false)
 
             // Run OCR for ID cards
@@ -210,8 +249,9 @@ export function FileUpload({
         }
         img.src = localUrl
       } else {
+        // For documents or images without dimension requirements
         setPreview(localUrl)
-        onChange(localUrl)
+        onChange(base64) // Save Base64
         setIsUploading(false)
       }
     } catch (error) {
@@ -221,10 +261,13 @@ export function FileUpload({
     }
   }
 
-  const handleCropComplete = (croppedBlob: Blob) => {
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    // Convert cropped blob to Base64 for permanent storage
+    const base64 = await fileToBase64(croppedBlob)
     const croppedUrl = URL.createObjectURL(croppedBlob)
+
     setPreview(croppedUrl)
-    onChange(croppedUrl)
+    onChange(base64) // Save Base64 instead of blob URL
     setPendingImage(null)
     setDimensionWarning(null)
 
@@ -266,10 +309,25 @@ export function FileUpload({
     }
   }
 
-  const handleReopenCrop = () => {
+  const handleReopenCrop = async () => {
     if (preview) {
-      setPendingImage(preview)
-      setCropModalOpen(true)
+      // If preview is Base64, convert to blob URL for cropping
+      if (isBase64(preview)) {
+        try {
+          // Fetch the Base64 data and convert to blob
+          const response = await fetch(preview)
+          const blob = await response.blob()
+          const blobUrl = URL.createObjectURL(blob)
+          setPendingImage(blobUrl)
+          setCropModalOpen(true)
+        } catch (error) {
+          console.error('Failed to convert Base64 to blob:', error)
+          alert('فشل في تحميل الصورة للقص')
+        }
+      } else {
+        setPendingImage(preview)
+        setCropModalOpen(true)
+      }
     }
   }
 
@@ -277,6 +335,12 @@ export function FileUpload({
     if (fileType === 'image') return <ImageIcon className="w-6 h-6 text-gray-400" />
     return <FileText className="w-6 h-6 text-gray-400" />
   }
+
+  // Check if a value is a Base64 data URL
+  const isBase64 = (url: string) => url.startsWith('data:')
+
+  // Check if a value is a blob URL
+  const isBlobUrl = (url: string) => url.startsWith('blob:')
 
   const getPreviewStyle = () => {
     if (!imageType || !dimensions) return {}
@@ -354,7 +418,7 @@ export function FileUpload({
 
         {preview ? (
           <div className="relative border border-gray-300 rounded-lg p-3 bg-gray-50">
-            {fileType === 'image' && preview && (preview.endsWith('.jpg') || preview.endsWith('.jpeg') || preview.endsWith('.png') || preview.startsWith('blob:')) ? (
+            {fileType === 'image' && preview && (isBase64(preview) || isBlobUrl(preview) || preview.match(/\.(jpg|jpeg|png)$/i)) ? (
               <div className="flex justify-center bg-white rounded-lg p-2">
                 <img
                   src={preview}
@@ -371,7 +435,7 @@ export function FileUpload({
                     {labelAr}
                   </p>
                   <p className="text-xs text-gray-500 font-sans truncate">
-                    {preview.split('/').pop()}
+                    {isBase64(preview) ? 'صورة مشفرة' : preview.split('/').pop()}
                   </p>
                 </div>
               </div>
@@ -382,7 +446,13 @@ export function FileUpload({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (preview.startsWith('blob:')) {
+                  if (isBase64(preview)) {
+                    // Open Base64 image in new tab
+                    const newWindow = window.open()
+                    if (newWindow) {
+                      newWindow.document.write(`<img src="${preview}" style="max-width:100%">`)
+                    }
+                  } else if (isBlobUrl(preview)) {
                     window.open(preview, '_blank')
                   }
                 }}
@@ -391,7 +461,7 @@ export function FileUpload({
                 <Eye className="w-3 h-3 ml-1" />
                 معاينة
               </Button>
-              {imageType && preview && (preview.endsWith('.jpg') || preview.endsWith('.jpeg') || preview.endsWith('.png') || preview.startsWith('blob:')) && (
+              {imageType && preview && (isBase64(preview) || isBlobUrl(preview) || preview.match(/\.(jpg|jpeg|png)$/i)) && (
                 <Button
                   variant="outline"
                   size="sm"
