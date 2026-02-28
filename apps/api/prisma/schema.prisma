@@ -1,0 +1,619 @@
+// Prisma Schema for HeavyOps ERP
+// Construction Management System for Saudi Companies
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Example: postgresql://postgres:123456@localhost:5432/heavyops_db
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  ENGINEER
+  ACCOUNTANT
+  HR
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum EquipmentStatus {
+  ACTIVE
+  IDLE
+  MAINTENANCE
+  RETIRED
+}
+
+enum EquipmentType {
+  EXCAVATOR
+  LOADER
+  CRUSHER
+  TRUCK
+  CRANE
+  OTHER
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  EMERGENCY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ExpenseCategory {
+  MATERIALS
+  LABOR
+  EQUIPMENT
+  FUEL
+  RENT
+  UTILITIES
+  INSURANCE
+  OTHER
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  DELIVERED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  PROJECT_UPDATE
+  INVOICE_DUE
+  MAINTENANCE_DUE
+  DOCUMENT_EXPIRY
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertType {
+  IQAMA_EXPIRY
+  PASSPORT_EXPIRY
+  MAINTENANCE_DUE
+  BUDGET_OVERRUN
+  DOCUMENT_MISSING
+  SAFETY_ISSUE
+  OTHER
+}
+
+// ============================================================================
+// 1. USERS & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  nameAr        String?   @map("name_ar")
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole  @default(VIEWER)
+  avatar        String?
+  phone         String?
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  sessions        Session[]
+  managedProjects Project[]  @relation("ProjectManager")
+  approvedExpenses Expense[]  @relation("ExpenseApprover")
+  notifications   Notification[]
+  createdAtBy     Alert[]     @relation("AlertCreatedBy")
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// 2. CLIENTS & SUPPLIERS
+// ============================================================================
+
+model Client {
+  id             String   @id @default(cuid())
+  name           String
+  nameAr         String?  @map("name_ar")
+  contactPerson  String?  @map("contact_person")
+  phone          String?
+  email          String?
+  address        String?
+  city           String?
+  country        String?  @default("Saudi Arabia")
+  crNumber       String?  @map("cr_number")
+  vatNumber      String?  @map("vat_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  projects        Project[]
+  invoices        Invoice[]
+
+  @@map("clients")
+  @@index([name])
+  @@index([crNumber])
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String?  @map("name_ar")
+  contactPerson String?  @map("contact_person")
+  phone         String?
+  email         String?
+  address       String?
+  category      String?
+  rating        Int?     @db.SmallInt
+  taxNumber     String?  @map("tax_number")
+  crNumber      String?  @map("cr_number")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  orderNumber String              @unique @map("order_number")
+  supplierId  String              @map("supplier_id")
+  projectId   String?             @map("project_id")
+  items       Json                @default("[]")
+  total       Float
+  tax         Float               @default(0)
+  grandTotal  Float               @map("grand_total")
+  status      PurchaseOrderStatus @default(DRAFT)
+  notes       String?
+  orderedAt   DateTime            @default(now()) @map("ordered_at")
+  deliveredAt DateTime?           @map("delivered_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("purchase_orders")
+  @@index([supplierId])
+  @@index([projectId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+// ============================================================================
+// 3. PROJECTS
+// ============================================================================
+
+model Project {
+  id              String        @id @default(cuid())
+  name            String
+  nameAr          String?       @map("name_ar")
+  code            String        @unique
+  clientId        String        @map("client_id")
+  status          ProjectStatus @default(PLANNING)
+  budget          Float?
+  actualCost      Float?        @map("actual_cost") @default(0)
+  startDate       DateTime?     @map("start_date")
+  endDate         DateTime?     @map("end_date")
+  actualEndDate   DateTime?     @map("actual_end_date")
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  managerId       String?       @map("manager_id")
+  progressPercent Int           @default(0) @map("progress_percent")
+  description     String?
+  contractValue   Float?        @map("contract_value")
+  retention       Float?        @default(0.05)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  client          Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  manager         User?               @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+  financial       ProjectFinancial?
+  milestones      ProjectMilestone[]
+  employees       Employee[]
+  equipment       Equipment[]
+  invoices        Invoice[]
+  expenses        Expense[]
+  purchaseOrders  PurchaseOrder[]
+
+  @@map("projects")
+  @@index([code])
+  @@index([clientId])
+  @@index([managerId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model ProjectFinancial {
+  id              String    @id @default(cuid())
+  projectId       String    @unique @map("project_id")
+  revenue         Float     @default(0)
+  expenses        Float     @default(0)
+  profit          Float     @default(0)
+  profitMargin    Float?    @map("profit_margin")
+  pendingPayments Float     @default(0) @map("pending_payments")
+  collectedAmount Float     @default(0) @map("collected_amount")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_financials")
+  @@index([projectId])
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String    @map("project_id")
+  name        String
+  nameAr      String?   @map("name_ar")
+  description String?
+  dueDate     DateTime  @map("due_date")
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  progress    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_milestones")
+  @@index([projectId])
+  @@index([dueDate])
+  @@index([isCompleted])
+}
+
+// ============================================================================
+// 4. EMPLOYEES & PAYROLL
+// ============================================================================
+
+model Employee {
+  id              String         @id @default(cuid())
+  name            String
+  nameAr          String?        @map("name_ar")
+  employeeId      String         @unique @map("employee_id")
+  nationality     String
+  jobTitle        String         @map("job_title")
+  department      String
+  salary          Float
+  iqamaNumber     String?        @unique @map("iqama_number")
+  iqamaExpiry     DateTime?      @map("iqama_expiry")
+  passportNumber  String?        @unique @map("passport_number")
+  passportExpiry  DateTime?      @map("passport_expiry")
+  phone           String
+  email           String?
+  projectId       String?        @map("project_id")
+  status          EmployeeStatus @default(ACTIVE)
+  dateOfBirth     DateTime?      @map("date_of_birth")
+  joinDate        DateTime       @default(now()) @map("join_date")
+  endDate         DateTime?      @map("end_date")
+  bankName        String?        @map("bank_name")
+  bankAccount     String?        @map("bank_account")
+  iban            String?
+  address         String?
+  emergencyContact String?       @map("emergency_contact")
+  emergencyPhone  String?        @map("emergency_phone")
+  photo           String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  project    Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  attendance Attendance[]
+  payroll    Payroll[]
+
+  @@map("employees")
+  @@index([employeeId])
+  @@index([projectId])
+  @@index([iqamaNumber])
+  @@index([passportNumber])
+  @@index([status])
+  @@index([department])
+}
+
+model Attendance {
+  id        String          @id @default(cuid())
+  employeeId String         @map("employee_id")
+  date      DateTime        @db.Date
+  checkIn   DateTime?       @map("check_in")
+  checkOut  DateTime?       @map("check_out")
+  status    AttendanceStatus @default(PRESENT)
+  workHours Float?          @map("work_hours")
+  overtimeHours Float?      @map("overtime_hours")
+  notes     String?
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("attendance")
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+}
+
+model Payroll {
+  id            String    @id @default(cuid())
+  employeeId    String    @map("employee_id")
+  month         Int
+  year          Int
+  basicSalary   Float     @map("basic_salary")
+  housing       Float?    @default(0)
+  transportation Float?   @default(0)
+  overtime      Float?    @default(0)
+  deductions    Float?    @default(0)
+  bonuses       Float?    @default(0)
+  netSalary     Float     @map("net_salary")
+  isPaid        Boolean   @default(false) @map("is_paid")
+  paidAt        DateTime? @map("paid_at")
+  paymentMethod String?   @map("payment_method")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("payroll")
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([isPaid])
+}
+
+// ============================================================================
+// 5. EQUIPMENT & MAINTENANCE
+// ============================================================================
+
+model Equipment {
+  id                   String          @id @default(cuid())
+  name                 String
+  nameAr               String?         @map("name_ar")
+  code                 String          @unique
+  type                 EquipmentType
+  brand                String?
+  model                String?
+  serialNumber         String?         @unique @map("serial_number")
+  status               EquipmentStatus @default(IDLE)
+  currentProjectId     String?         @map("current_project_id")
+  purchaseDate         DateTime?       @map("purchase_date")
+  purchaseCost         Float?          @map("purchase_cost")
+  lastMaintenanceDate  DateTime?       @map("last_maintenance_date")
+  nextMaintenanceDate  DateTime?       @map("next_maintenance_date")
+  hourlyCost           Float?          @map("hourly_cost")
+  dailyCost            Float?          @map("daily_cost")
+  location             String?
+  operator             String?
+  fuelConsumption      Float?          @map("fuel_consumption")
+  description          String?
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  project           Project?           @relation(fields: [currentProjectId], references: [id], onDelete: SetNull)
+  maintenanceRecords MaintenanceRecord[]
+
+  @@map("equipment")
+  @@index([code])
+  @@index([type])
+  @@index([status])
+  @@index([currentProjectId])
+  @@index([nextMaintenanceDate])
+}
+
+model MaintenanceRecord {
+  id          String          @id @default(cuid())
+  equipmentId String          @map("equipment_id")
+  type        MaintenanceType
+  title       String
+  description String?
+  cost        Float?
+  date        DateTime        @default(now())
+  technician  String?
+  nextDueDate DateTime?       @map("next_due_date")
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+  @@index([equipmentId])
+  @@index([date])
+  @@index([type])
+  @@index([nextDueDate])
+}
+
+// ============================================================================
+// 6. FINANCIAL - INVOICES & EXPENSES
+// ============================================================================
+
+model Invoice {
+  id           String        @id @default(cuid())
+  projectId    String        @map("project_id")
+  clientId     String        @map("client_id")
+  invoiceNumber String       @unique @map("invoice_number")
+  amount       Float
+  tax          Float         @default(0)
+  taxRate      Float?        @map("tax_rate") @default(0.15)
+  total        Float
+  status       InvoiceStatus @default(DRAFT)
+  issueDate    DateTime      @default(now()) @map("issue_date")
+  dueDate      DateTime      @map("due_date")
+  paidDate     DateTime?     @map("paid_date")
+  paymentMethod String?      @map("payment_method")
+  notes        String?
+  terms        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@map("invoices")
+  @@index([projectId])
+  @@index([clientId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  projectId   String?         @map("project_id")
+  category    ExpenseCategory
+  amount      Float
+  description String?
+  date        DateTime        @default(now())
+  approvedBy  String?         @map("approved_by")
+  isApproved  Boolean         @default(false) @map("is_approved")
+  receiptUrl  String?         @map("receipt_url")
+  vendor      String?
+  invoiceNumber String?       @map("invoice_number")
+  paymentMethod String?       @map("payment_method")
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approver   User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
+  @@index([projectId])
+  @@index([category])
+  @@index([date])
+  @@index([isApproved])
+}
+
+// ============================================================================
+// 7. NOTIFICATIONS & ALERTS
+// ============================================================================
+
+model Notification {
+  id        String          @id @default(cuid())
+  userId    String          @map("user_id")
+  type      NotificationType
+  title     String
+  titleAr   String?         @map("title_ar")
+  message   String
+  messageAr String?         @map("message_ar")
+  isRead    Boolean         @default(false) @map("is_read")
+  readAt    DateTime?       @map("read_at")
+  link      String?
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Alert {
+  id         String      @id @default(cuid())
+  type       AlertType
+  severity   AlertSeverity
+  title      String
+  titleAr    String?     @map("title_ar")
+  message    String
+  messageAr  String?     @map("message_ar")
+  entityType String?     @map("entity_type")
+  entityId   String?     @map("entity_id")
+  isResolved Boolean     @default(false) @map("is_resolved")
+  resolvedAt DateTime?   @map("resolved_at")
+  resolvedBy String?     @map("resolved_by")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  createdBy  String?     @map("created_by")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  creator User? @relation("AlertCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("alerts")
+  @@index([type])
+  @@index([severity])
+  @@index([isResolved])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
