@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,7 @@ import {
   type PaymentMethod,
   type SalaryRecord,
 } from '@/hooks/useEmployees'
+import { useAttendance, useAttendanceStats } from '@/hooks/useAttendance'
 import { formatNumber } from '@/utils/format'
 import {
   DollarSign,
@@ -81,6 +82,26 @@ export default function PayrollPage() {
   const updateSalaryMutation = useUpdateSalary()
   const deleteSalaryMutation = useDeleteSalary()
 
+  // Get attendance stats for the editing employee
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
+  const { data: attendanceStats } = useAttendanceStats(
+    editingEmployeeId || '',
+    editingEmployeeId ? `${selectedYear}-${selectedMonth}` : undefined
+  )
+
+  // Update absences when attendance stats are loaded
+  useEffect(() => {
+    if (attendanceStats && editingSalary) {
+      setEditingSalary((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          absences: attendanceStats.absentDays,
+        }
+      })
+    }
+  }, [attendanceStats])
+
   // Create salary records for employees who don't have one for this month
   const payrollData: PayrollItem[] = employees.map((emp) => {
     const existingSalary = salaries.find((s) => s.employeeId === emp.id)
@@ -126,6 +147,8 @@ export default function PayrollPage() {
   }
 
   const handleEdit = (item: PayrollItem) => {
+    setEditingEmployeeId(item.employee.id)
+    // Set initial absences from stored value (will be updated by useEffect)
     setEditingSalary(item)
     setIsModalOpen(true)
   }
@@ -176,6 +199,7 @@ export default function PayrollPage() {
     }
     setIsModalOpen(false)
     setEditingSalary(null)
+    setEditingEmployeeId(null)
   }
 
   const handleDelete = (salaryId: string) => {

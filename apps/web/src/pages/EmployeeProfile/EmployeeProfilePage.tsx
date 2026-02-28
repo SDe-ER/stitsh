@@ -4,8 +4,16 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmployeeModal } from '@/components/modals/EmployeeModal'
+import { AttendanceModal } from '@/components/modals/AttendanceModal'
 import { useEmployeeById } from '@/hooks/useEmployees'
-import { useAttendance, useAttendanceStats, attendanceStatusLabels } from '@/hooks/useAttendance'
+import {
+  useAttendance,
+  useAttendanceStats,
+  useCreateAttendance,
+  useUpdateAttendance,
+  useDeleteAttendance,
+  attendanceStatusLabels,
+} from '@/hooks/useAttendance'
 import { formatNumber } from '@/utils/format'
 import {
   User,
@@ -25,6 +33,9 @@ import {
   Download,
   TrendingUp,
   Timer,
+  Plus,
+  MoreVertical,
+  Trash2,
 } from 'lucide-react'
 
 type TabType = 'personal' | 'documents' | 'salary' | 'attendance'
@@ -80,12 +91,45 @@ export default function EmployeeProfilePage() {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   })
 
+  // Attendance modal state
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
+  const [editAttendanceRecord, setEditAttendanceRecord] = useState<any>(undefined)
+
   const { data: employee, isLoading } = useEmployeeById(id || '')
   const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendance({
     employeeId: id || '',
     month: selectedMonth,
   })
   const { data: attendanceStats, isLoading: isLoadingStats } = useAttendanceStats(id || '', selectedMonth)
+
+  // Attendance CRUD hooks
+  const createAttendance = useCreateAttendance()
+  const updateAttendance = useUpdateAttendance()
+  const deleteAttendance = useDeleteAttendance()
+
+  const handleSaveAttendance = (data: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editAttendanceRecord) {
+      updateAttendance.mutate({ id: editAttendanceRecord.id, data })
+    } else {
+      createAttendance.mutate(data)
+    }
+  }
+
+  const handleEditAttendance = (record: AttendanceRecord) => {
+    setEditAttendanceRecord(record)
+    setIsAttendanceModalOpen(true)
+  }
+
+  const handleDeleteAttendance = (recordId: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+      deleteAttendance.mutate(recordId)
+    }
+  }
+
+  const handleAddAttendance = () => {
+    setEditAttendanceRecord(undefined)
+    setIsAttendanceModalOpen(true)
+  }
 
   if (isLoading) {
     return (
@@ -591,8 +635,10 @@ export default function EmployeeProfilePage() {
                 <h2 className="text-xl font-bold text-gray-900 font-cairo">سجل الحضور</h2>
               </div>
 
-              {/* Month Filter */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                {/* Month Filter */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600 font-cairo">الشهر:</label>
                 <label className="text-sm text-gray-600 font-cairo">الشهر:</label>
                 <input
                   type="month"
@@ -600,6 +646,16 @@ export default function EmployeeProfilePage() {
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm font-cairo focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
+                </div>
+
+                {/* Add Button */}
+                <button
+                  onClick={handleAddAttendance}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2563eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors font-cairo text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  إضافة تسجيل
+                </button>
               </div>
             </div>
 
@@ -720,15 +776,22 @@ export default function EmployeeProfilePage() {
                     <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">ساعات العمل</th>
                     <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">الحالة</th>
                     <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">ملاحظات</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 font-cairo border-b">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {attendanceRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center">
+                      <td colSpan={7} className="px-4 py-12 text-center">
                         <div className="flex flex-col items-center">
                           <Calendar className="w-16 h-16 text-gray-300 mb-4" />
                           <p className="text-gray-600 font-cairo">لا توجد سجلات حضور لهذا الشهر</p>
+                          <button
+                            onClick={handleAddAttendance}
+                            className="mt-4 px-4 py-2 bg-[#2563eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors font-cairo text-sm font-medium"
+                          >
+                            إضافة سجل جديد
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -762,6 +825,24 @@ export default function EmployeeProfilePage() {
                           <td className="px-4 py-3 text-sm font-cairo text-gray-500">
                             {record.notesAr || '-'}
                           </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditAttendance(record)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="تعديل"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAttendance(record.id)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       )
                     })
@@ -789,6 +870,20 @@ export default function EmployeeProfilePage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         editEmployee={employee}
+      />
+
+      {/* Attendance Modal */}
+      <AttendanceModal
+        isOpen={isAttendanceModalOpen}
+        onClose={() => {
+          setIsAttendanceModalOpen(false)
+          setEditAttendanceRecord(undefined)
+        }}
+        onSave={handleSaveAttendance}
+        onDelete={editAttendanceRecord ? handleDeleteAttendance : undefined}
+        editRecord={editAttendanceRecord}
+        employeeId={id || ''}
+        employeeNameAr={employee?.nameAr || ''}
       />
     </AppLayout>
   )
