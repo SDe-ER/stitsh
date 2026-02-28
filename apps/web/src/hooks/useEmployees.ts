@@ -686,6 +686,8 @@ export function useEmployees(filters?: EmployeeFilters) {
   return useQuery({
     queryKey: ['employees', filters],
     queryFn: () => fetchEmployees(filters),
+    retry: false,
+    initialData: () => getEmployees(),
     staleTime: 2 * 60 * 1000,
   })
 }

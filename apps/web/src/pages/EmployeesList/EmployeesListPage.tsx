@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmployeeModal } from '@/components/modals/EmployeeModal'
 import {
   useEmployees,
+  useDeleteEmployee,
   getEmployeeStats,
   getResidencyStatus,
   getResidencyStatusConfig,
@@ -29,13 +31,15 @@ import {
 } from 'lucide-react'
 
 export default function EmployeesListPage() {
+  const navigate = useNavigate()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editEmployee, setEditEmployee] = useState<Employee | undefined>()
   const [filters, setFilters] = useState<EmployeeFilters>({})
 
-  const { data: employees = [], isLoading } = useEmployees(filters)
+  const { data: employees = [], isLoading, isError, error } = useEmployees(filters)
   const { data: projectsResponse } = useProjects()
   const projects = projectsResponse?.projects || []
+  const deleteEmployee = useDeleteEmployee()
 
   const stats = getEmployeeStats()
 
@@ -44,8 +48,7 @@ export default function EmployeesListPage() {
 
   const handleDelete = (id: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
-      console.log('Delete employee:', id)
-      // TODO: Implement delete functionality
+      deleteEmployee.mutate(id)
     }
   }
 
@@ -234,7 +237,11 @@ export default function EmployeesListPage() {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {isLoading ? (
+        {isError ? (
+          <div className="p-8 text-center">
+            <p className="text-red-500 font-cairo">Error: {String(error)}</p>
+          </div>
+        ) : isLoading ? (
           <div className="p-8 text-center">
             <div className="animate-spin w-8 h-8 border-4 border-[#2563eb] border-t-transparent rounded-full mx-auto"></div>
             <p className="text-gray-500 mt-2 font-cairo">جاري التحميل...</p>
@@ -322,10 +329,8 @@ export default function EmployeesListPage() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg"
-                            onClick={() => {
-                              setEditEmployee(employee)
-                              setIsModalOpen(true)
-                            }}
+                            onClick={() => navigate(`/hr/employees/${employee.id}`)}
+                            title="عرض الملف الشخصي"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -335,12 +340,15 @@ export default function EmployeesListPage() {
                               setEditEmployee(employee)
                               setIsModalOpen(true)
                             }}
+                            title="تعديل"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                           <button
                             className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg"
                             onClick={() => handleDelete(employee.id)}
+                            title="حذف"
+                            disabled={deleteEmployee.isPending}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
