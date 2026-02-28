@@ -44,6 +44,10 @@ body {
   animation: fade-in 0.2s ease-out;
 }
 
+.fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
 .animate-scale-in {
   animation: scale-in 0.2s ease-out;
 }
