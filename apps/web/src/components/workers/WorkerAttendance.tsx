@@ -1,6 +1,6 @@
 'use client'
 
-import { AttendanceStats } from '@/hooks/useAttendance'
+import type { AttendanceStats } from '@/hooks/useAttendance'
 
 interface WorkerAttendanceProps {
   attendanceStats?: AttendanceStats
@@ -36,7 +36,7 @@ export function WorkerAttendance({ attendanceStats }: WorkerAttendanceProps) {
           <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${attendanceRate}%` }}></div>
         </div>
         <p className="text-xs text-slate-400 mt-2 text-left">
-          آخر غياب: {attendanceStats?.absentDays === 0 ? 'لا يوجد في آخر 3 أشهر' : `${attendanceStats.absentDays} أيام`}
+          آخر غياب: {(attendanceStats?.absentDays ?? 0) === 0 ? 'لا يوجد في آخر 3 أشهر' : `${attendanceStats?.absentDays ?? 0} أيام`}
         </p>
       </div>
     </div>

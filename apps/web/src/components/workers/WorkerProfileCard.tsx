@@ -1,6 +1,6 @@
 'use client'
 
-import { Employee } from '@/hooks/useEmployees'
+import type { Employee } from '@/hooks/useEmployees'
 
 interface WorkerProfileCardProps {
   employee: Employee
