@@ -11,6 +11,7 @@ import MaintenancePage from '@/pages/Maintenance/MaintenancePage'
 import { EquipmentOperationsPage } from '@/pages/EquipmentOperations'
 import { EmployeesListPage } from '@/pages/EmployeesList'
 import { EmployeeProfilePage } from '@/pages/EmployeeProfile'
+import { WorkerProfilePage } from '@/pages/WorkerProfile'
 import { PayrollPage } from '@/pages/Payroll'
 import {
   FinanceOverviewPage,
@@ -41,6 +42,7 @@ export default function AppRouter() {
       <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
       <Route path="/hr/employees" element={<EmployeesListPage />} />
       <Route path="/hr/employees/:id" element={<EmployeeProfilePage />} />
+      <Route path="/hr/workers/:id" element={<WorkerProfilePage />} />
       <Route path="/hr/payroll" element={<PayrollPage />} />
       {/* Finance Routes */}
       <Route path="/finance" element={<FinanceOverviewPage />} />
