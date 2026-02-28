@@ -2,7 +2,23 @@
 
 import { useState, useEffect } from 'react'
 import { X, Calendar, Clock, Save, Trash2 } from 'lucide-react'
-import { AttendanceRecord, AttendanceStatus, attendanceStatusLabels } from '@/hooks/useAttendance'
+import type { AttendanceStatus } from '@/hooks/useAttendance'
+import { attendanceStatusLabels } from '@/hooks/useAttendance'
+
+// Define the interface inline to avoid import issues
+interface AttendanceRecord {
+  id: string
+  employeeId: string
+  date: string
+  checkIn: string
+  checkOut?: string
+  status: AttendanceStatus
+  workHours: number
+  notes?: string
+  notesAr?: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface AttendanceModalProps {
   isOpen: boolean
