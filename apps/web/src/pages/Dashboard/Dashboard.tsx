@@ -1,7 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Plus, Download, TrendingUp, Users, Wrench, DollarSign, FileText, Calendar } from 'lucide-react'
+import { Plus, Download } from 'lucide-react'
 
 export function Dashboard() {
   const kpiData = [
