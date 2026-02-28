@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Calendar, Project, Money, Schedule, EditNote, AlertCircle, Check } from 'lucide-react'
+import { X, Calendar, Building2, DollarSign, Clock, FileEdit, AlertCircle, Check } from 'lucide-react'
 import { useProjects } from '@/hooks/useProjects'
 import {
   useCreateDeduction,
@@ -120,7 +120,7 @@ export function DeductionModal({
         <div className="bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
-              <EditNote className="w-5 h-5 text-white" />
+              <FileEdit className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-white font-cairo">إضافة استقطاع جديد</h3>
@@ -154,7 +154,7 @@ export function DeductionModal({
           {/* Deduction Type */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-              <Schedule className="w-4 h-4 text-[#2563eb]" />
+              <Clock className="w-4 h-4 text-[#2563eb]" />
               نوع الاستقطاع
             </label>
             <select
@@ -189,7 +189,7 @@ export function DeductionModal({
           {/* Project */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-              <Project className="w-4 h-4 text-[#2563eb]" />
+              <Building2 className="w-4 h-4 text-[#2563eb]" />
               المشروع
             </label>
             <select
@@ -212,7 +212,7 @@ export function DeductionModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-                  <Schedule className="w-4 h-4 text-[#2563eb]" />
+                  <Clock className="w-4 h-4 text-[#2563eb]" />
                   ساعات
                 </label>
                 <input
@@ -228,7 +228,7 @@ export function DeductionModal({
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-                  <Schedule className="w-4 h-4 text-[#2563eb]" />
+                  <Clock className="w-4 h-4 text-[#2563eb]" />
                   دقائق
                 </label>
                 <input
@@ -247,7 +247,7 @@ export function DeductionModal({
           {/* Amount - manual input or auto-calculated */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-              <Money className="w-4 h-4 text-[#2563eb]" />
+              <DollarSign className="w-4 h-4 text-[#2563eb]" />
               المبلغ (بالريال)
             </label>
             <input
@@ -286,7 +286,7 @@ export function DeductionModal({
           {/* Notes */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2 font-cairo">
-              <EditNote className="w-4 h-4 text-[#2563eb]" />
+              <FileEdit className="w-4 h-4 text-[#2563eb]" />
               ملاحظات
             </label>
             <textarea
