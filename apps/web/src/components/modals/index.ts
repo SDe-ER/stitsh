@@ -1,1 +1,5 @@
 export { ProjectModal } from './ProjectModal'
+export { EquipmentModal } from './EquipmentModal'
+export { EquipmentOperationModal } from './EquipmentOperationModal'
+export { AssignEquipmentModal } from './AssignEquipmentModal'
+export { EmployeeModal } from './EmployeeModal'

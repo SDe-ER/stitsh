@@ -21,6 +21,7 @@ const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'لوحة القيادة', labelAr: 'لوحة القيادة', icon: '📊', path: '/dashboard' },
   { id: 'projects', label: 'المشاريع', labelAr: 'المشاريع', icon: '🏗️', path: '/projects' },
   { id: 'equipment', label: 'الأسطول والمعدات', labelAr: 'الأسطول', icon: '🚛', path: '/equipment', alert: true },
+  { id: 'equipment-ops', label: 'تشغيل المعدات', labelAr: 'تشغيل المعدات', icon: '⚙️', path: '/equipment/operations' },
   { id: 'hr', label: 'الموارد البشرية', labelAr: 'الموظفين', icon: '👷', path: '/hr', badge: 3 },
   { id: 'finance', label: 'المالية', labelAr: 'المالية', icon: '💰', path: '/finance' },
   { id: 'suppliers', label: 'الموردون والعملاء', labelAr: 'الموردون', icon: '🤝', path: '/suppliers' },
@@ -38,7 +39,19 @@ export function Sidebar({ isOpen = true, isMobile = false, onClose }: SidebarPro
     avatar: 'https://ui-avatars.com/api/?name=Ahmed+Al-Rashid&background=2563eb&color=fff',
   })
 
-  const activeItem = menuItems.find((item) => location.pathname.startsWith(item.path))
+  const activeItem = menuItems.find((item) => {
+    // Exact match for most paths
+    if (location.pathname === item.path) return true
+    // Special case for equipment-ops - should not match when on main equipment page
+    if (item.id === 'equipment-ops' && location.pathname === '/equipment/operations') return true
+    // Equipment path should not match equipment operations
+    if (item.id === 'equipment' && location.pathname.startsWith('/equipment') && !location.pathname.startsWith('/equipment/operations')) return true
+    // HR routes
+    if (item.id === 'hr' && location.pathname.startsWith('/hr')) return true
+    // Default startsWith behavior for others
+    if (item.id !== 'equipment' && item.id !== 'equipment-ops' && item.id !== 'hr' && location.pathname.startsWith(item.path)) return true
+    return false
+  })
 
   return (
     <aside

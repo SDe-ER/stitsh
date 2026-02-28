@@ -5,6 +5,13 @@ import { Projects } from '@/pages/Projects/Projects'
 import ProjectsListPage from '@/pages/ProjectsList/ProjectsListPage'
 import ProjectDetailPage from '@/pages/ProjectDetail/ProjectDetailPage'
 import { ComponentTest } from '@/pages/ComponentTest/ComponentTest'
+import EquipmentListPage from '@/pages/EquipmentList/EquipmentListPage'
+import EquipmentDetailPage from '@/pages/EquipmentDetail/EquipmentDetailPage'
+import MaintenancePage from '@/pages/Maintenance/MaintenancePage'
+import { EquipmentOperationsPage } from '@/pages/EquipmentOperations'
+import { EmployeesListPage } from '@/pages/EmployeesList'
+import { EmployeeProfilePage } from '@/pages/EmployeeProfile'
+import { PayrollPage } from '@/pages/Payroll'
 
 export default function AppRouter() {
   return (
@@ -16,6 +23,17 @@ export default function AppRouter() {
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
       <Route path="/projects-old" element={<Projects />} />
+      {/* Equipment Routes */}
+      <Route path="/equipment" element={<EquipmentListPage />} />
+      <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
+      <Route path="/equipment/maintenance" element={<MaintenancePage />} />
+      <Route path="/equipment/operations" element={<EquipmentOperationsPage />} />
+      {/* HR Routes */}
+      <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
+      <Route path="/hr/employees" element={<EmployeesListPage />} />
+      <Route path="/hr/employees/:id" element={<EmployeeProfilePage />} />
+      <Route path="/hr/payroll" element={<PayrollPage />} />
+      {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
