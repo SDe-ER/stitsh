@@ -13,6 +13,8 @@ import {
   StatusBadge,
   LoadingSpinner,
   PageLoader,
+  FileUpload,
+  ImageCropModal,
 } from '@/components/ui'
 import { Plus, Download, Trash2, Edit, Search, User, Mail, Phone } from 'lucide-react'
 
@@ -54,6 +56,9 @@ export function ComponentTest() {
   const [buttonLoading, setButtonLoading] = useState(false)
   const [alertType, setAlertType] = useState<'info' | 'success' | 'warning' | 'error'>('info')
   const [showAlert, setShowAlert] = useState(true)
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [testImage, setTestImage] = useState<string | null>(null)
+  const [testPhotoUrl, setTestPhotoUrl] = useState<string>('')
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -382,6 +387,49 @@ export function ComponentTest() {
           </div>
         </section>
 
+        {/* Image Cropper */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 font-cairo mb-4">Image Cropper / قص الصور</h2>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="space-y-6">
+              {/* Profile Photo Test */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 font-cairo mb-3">Profile Photo (4×6 cm Portrait)</h3>
+                <FileUpload
+                  labelAr="صورة شخصية"
+                  value={testPhotoUrl}
+                  onChange={setTestPhotoUrl}
+                  accept="image/*"
+                  fileType="image"
+                  maxSize={5}
+                  imageType="photo"
+                />
+                {testPhotoUrl && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800 font-cairo">
+                      ✓ تم رفع الصورة بنجاح - الناتج: 240×360 بكسل (4×6 سم)
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ID Card Test */}
+              <div className="pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 font-cairo mb-3">ID Card (85.6×53.98 mm International Standard)</h3>
+                <FileUpload
+                  labelAr="صورة البطاقة"
+                  value=""
+                  onChange={() => {}}
+                  accept="image/*"
+                  fileType="image"
+                  maxSize={5}
+                  imageType="idCard"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Data Table */}
         <section>
           <h2 className="text-xl font-bold text-gray-900 font-cairo mb-4">Data Table / جدول البيانات</h2>
@@ -447,6 +495,24 @@ export function ComponentTest() {
           />
         </div>
       </Modal>
+
+      {/* Image Crop Modal */}
+      {testImage && (
+        <ImageCropModal
+          isOpen={cropModalOpen}
+          onClose={() => {
+            setCropModalOpen(false)
+            setTestImage(null)
+          }}
+          imageSrc={testImage}
+          onCropComplete={(blob) => {
+            const url = URL.createObjectURL(blob)
+            setTestPhotoUrl(url)
+            setTestImage(null)
+          }}
+          imageType="photo"
+        />
+      )}
     </AppLayout>
   )
 }

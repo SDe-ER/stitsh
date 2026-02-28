@@ -29,6 +29,7 @@ export interface Project {
   location: string
   locationAr: string
   employeeCount: number
+  assignedEquipmentIds: string[]  // IDs of equipment assigned to this project
   createdAt: string
   updatedAt: string
 }
@@ -127,6 +128,24 @@ export interface ProjectEquipment {
   statusAr: string
 }
 
+export interface ProjectItem {
+  id: string
+  code: string
+  name: string
+  nameAr: string
+  description?: string
+  descriptionAr?: string
+  unit: string
+  unitAr: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  category: string
+  categoryAr: string
+  status: 'pending' | 'approved' | 'in-progress' | 'completed'
+  statusAr: string
+}
+
 export interface ProjectDetail extends Project {
   kpis: ProjectKPIs
   milestones: Milestone[]
@@ -135,6 +154,7 @@ export interface ProjectDetail extends Project {
   invoices: Invoice[]
   employees: ProjectEmployee[]
   equipment: ProjectEquipment[]
+  items: ProjectItem[]
 }
 
 export interface ProjectsListResponse {
@@ -171,6 +191,7 @@ const mockProjects: Project[] = [
     location: 'Riyadh, Olaya St',
     locationAr: 'الرياض، شارع العليا',
     employeeCount: 45,
+    assignedEquipmentIds: ['eq-1', 'eq-2', 'eq-5'],  // Assigned equipment
     createdAt: '2024-01-10',
     updatedAt: '2024-12-15',
   },
@@ -197,6 +218,7 @@ const mockProjects: Project[] = [
     location: 'Jeddah, Palestine St',
     locationAr: 'جدة، شارع فلسطين',
     employeeCount: 78,
+    assignedEquipmentIds: ['eq-3', 'eq-4'],
     createdAt: '2024-02-20',
     updatedAt: '2024-12-10',
   },
@@ -223,6 +245,7 @@ const mockProjects: Project[] = [
     location: 'Dammam, Industrial City',
     locationAr: 'الدمام، المدينة الصناعية',
     employeeCount: 25,
+    assignedEquipmentIds: ['eq-6', 'eq-8'],
     createdAt: '2024-04-15',
     updatedAt: '2024-11-20',
   },
@@ -249,6 +272,7 @@ const mockProjects: Project[] = [
     location: 'Medina',
     locationAr: 'المدينة المنورة',
     employeeCount: 120,
+    assignedEquipmentIds: ['eq-2'],
     createdAt: '2023-07-15',
     updatedAt: '2024-12-20',
   },
@@ -275,6 +299,7 @@ const mockProjects: Project[] = [
     location: 'Al-Khobar, Corniche',
     locationAr: 'الخبر، الكورنيش',
     employeeCount: 32,
+    assignedEquipmentIds: [],
     createdAt: '2024-09-15',
     updatedAt: '2024-12-01',
   },
@@ -301,6 +326,7 @@ const mockProjects: Project[] = [
     location: 'Riyadh, King Fahd Rd',
     locationAr: 'الرياض، شارع الملك فهد',
     employeeCount: 0,
+    assignedEquipmentIds: [],
     createdAt: '2022-12-01',
     updatedAt: '2024-10-01',
   },
@@ -564,6 +590,144 @@ const mockProjectDetail: ProjectDetail = {
       typeAr: 'جرافة',
       status: 'available',
       statusAr: 'متاح',
+    },
+  ],
+  items: [
+    {
+      id: 'item-1',
+      code: 'ITM-001',
+      name: 'Concrete Works - Foundation',
+      nameAr: 'أعمال الخرسانة - الأساسات',
+      description: 'Reinforced concrete for foundation and substructure',
+      descriptionAr: 'الخرسانة المسلحة للأساسات والتحتstructure',
+      unit: 'm3',
+      unitAr: 'متر مكعب',
+      quantity: 2500,
+      unitPrice: 450,
+      totalPrice: 1125000,
+      category: 'Concrete',
+      categoryAr: 'خرسانة',
+      status: 'completed',
+      statusAr: 'مكتمل',
+    },
+    {
+      id: 'item-2',
+      code: 'ITM-002',
+      name: 'Steel Reinforcement',
+      nameAr: 'حديد التسليح',
+      description: 'Steel bars and mesh for reinforcement',
+      descriptionAr: 'حديد وقضمان التسليح',
+      unit: 'ton',
+      unitAr: 'طن',
+      quantity: 380,
+      unitPrice: 3200,
+      totalPrice: 1216000,
+      category: 'Steel',
+      categoryAr: 'حديد',
+      status: 'completed',
+      statusAr: 'مكتمل',
+    },
+    {
+      id: 'item-3',
+      code: 'ITM-003',
+      name: 'Block Work - Walls',
+      nameAr: 'أعمال البلوك - الجدران',
+      description: 'AAC block walls for interior and exterior',
+      descriptionAr: 'جدران بلوك AAC للداخل والخارج',
+      unit: 'm2',
+      unitAr: 'متر مربع',
+      quantity: 15000,
+      unitPrice: 85,
+      totalPrice: 1275000,
+      category: 'Masonry',
+      categoryAr: 'بناء',
+      status: 'in-progress',
+      statusAr: 'قيد التنفيذ',
+    },
+    {
+      id: 'item-4',
+      code: 'ITM-004',
+      name: 'Plastering Works',
+      nameAr: 'أعمال اللياسة',
+      description: 'Internal and external plastering',
+      descriptionAr: 'لياسة داخلية وخارجية',
+      unit: 'm2',
+      unitAr: 'متر مربع',
+      quantity: 22000,
+      unitPrice: 55,
+      totalPrice: 1210000,
+      category: 'Finishing',
+      categoryAr: 'تشطيبات',
+      status: 'pending',
+      statusAr: 'معلق',
+    },
+    {
+      id: 'item-5',
+      code: 'ITM-005',
+      name: 'Floor Tiling',
+      nameAr: 'تبليط الأرضيات',
+      description: 'Ceramic and porcelain tiles for floors',
+      descriptionAr: 'بلاط سيراميك وبورسلان للأرضيات',
+      unit: 'm2',
+      unitAr: 'متر مربع',
+      quantity: 12500,
+      unitPrice: 120,
+      totalPrice: 1500000,
+      category: 'Finishing',
+      categoryAr: 'تشطيبات',
+      status: 'pending',
+      statusAr: 'معلق',
+    },
+    {
+      id: 'item-6',
+      code: 'ITM-006',
+      name: 'Painting Works',
+      nameAr: 'أعمال الدهان',
+      description: 'Internal and external painting',
+      descriptionAr: 'دهان داخلي وخارجي',
+      unit: 'm2',
+      unitAr: 'متر مربع',
+      quantity: 28000,
+      unitPrice: 45,
+      totalPrice: 1260000,
+      category: 'Finishing',
+      categoryAr: 'تشطيبات',
+      status: 'pending',
+      statusAr: 'معلق',
+    },
+    {
+      id: 'item-7',
+      code: 'ITM-007',
+      name: 'Aluminum Windows',
+      nameAr: 'نوافذ ألومنيوم',
+      description: 'Aluminum frames and glass windows',
+      descriptionAr: 'أطر ألومنيوم وزجاج نوافذ',
+      unit: 'piece',
+      unitAr: 'قطعة',
+      quantity: 450,
+      unitPrice: 1200,
+      totalPrice: 540000,
+      category: 'Joinery',
+      categoryAr: 'نجارة',
+      status: 'approved',
+      statusAr: 'معتمد',
+    },
+    {
+      id: 'item-8',
+      code: 'ITM-008',
+      name: 'HVAC System',
+      nameAr: 'نظام التكييف',
+      description: 'Central air conditioning system',
+      descriptionAr: 'نظام تكييف مركزي',
+      unit: 'set',
+      unitAr: 'مجموعة',
+      quantity: 1,
+      unitPrice: 2800000,
+      totalPrice: 2800000,
+      category: 'MEP',
+      categoryAr: 'ميكانيكا',
+      status: 'approved',
+      statusAr: 'معتمد',
     },
   ],
 }
@@ -838,5 +1002,88 @@ export function useManagers() {
     queryKey: ['managers'],
     queryFn: getManagers,
     staleTime: 10 * 60 * 1000,
+  })
+}
+
+// Storage key for projects
+const PROJECTS_STORAGE_KEY = 'heavyops_projects'
+
+// Local storage functions for projects
+function getStoredProjects(): Project[] {
+  if (typeof window === 'undefined') return mockProjects
+  const stored = localStorage.getItem(PROJECTS_STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch {
+      return mockProjects
+    }
+  }
+  return mockProjects
+}
+
+function saveStoredProjects(projects: Project[]): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects))
+  }
+}
+
+// Hook to assign equipment to project
+export function useAssignEquipmentToProject() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ projectId, equipmentId }: { projectId: string; equipmentId: string }) => {
+      const projects = getStoredProjects()
+      const projectIndex = projects.findIndex(p => p.id === projectId)
+      if (projectIndex === -1) throw new Error('Project not found')
+
+      const project = projects[projectIndex]
+      if (!project.assignedEquipmentIds.includes(equipmentId)) {
+        project.assignedEquipmentIds = [...project.assignedEquipmentIds, equipmentId]
+        project.updatedAt = new Date().toISOString()
+      }
+
+      saveStoredProjects(projects)
+      return { projectId, equipmentId, project }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] })
+      toast.success('تم إضافة المعدة للمشروع بنجاح')
+    },
+    onError: (error) => {
+      console.error('Assign equipment error:', error)
+      toast.error('فشل إضافة المعدة للمشروع')
+    },
+  })
+}
+
+// Hook to unassign equipment from project
+export function useUnassignEquipmentFromProject() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ projectId, equipmentId }: { projectId: string; equipmentId: string }) => {
+      const projects = getStoredProjects()
+      const projectIndex = projects.findIndex(p => p.id === projectId)
+      if (projectIndex === -1) throw new Error('Project not found')
+
+      const project = projects[projectIndex]
+      project.assignedEquipmentIds = project.assignedEquipmentIds.filter(id => id !== equipmentId)
+      project.updatedAt = new Date().toISOString()
+
+      saveStoredProjects(projects)
+      return { projectId, equipmentId, project }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] })
+      toast.success('تم إزالة المعدة من المشروع بنجاح')
+    },
+    onError: (error) => {
+      console.error('Unassign equipment error:', error)
+      toast.error('فشل إزالة المعدة من المشروع')
+    },
   })
 }
