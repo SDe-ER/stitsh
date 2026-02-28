@@ -19,6 +19,7 @@ import {
   AuditReportPage,
 } from '@/pages/Finance'
 import { ClientsPage, SuppliersPage } from '@/pages/Suppliers'
+import { AnalyticsPage } from '@/pages/Analytics'
 
 export default function AppRouter() {
   return (
@@ -49,6 +50,8 @@ export default function AppRouter() {
       <Route path="/suppliers" element={<Navigate to="/suppliers/vendors" replace />} />
       <Route path="/suppliers/vendors" element={<SuppliersPage />} />
       <Route path="/suppliers/clients" element={<ClientsPage />} />
+      {/* Analytics Route */}
+      <Route path="/analytics" element={<AnalyticsPage />} />
       {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}
