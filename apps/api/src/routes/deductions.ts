@@ -2,19 +2,19 @@ import { Router } from 'express'
 import * as deductionController from '../controllers/deduction.controller'
 import * as deductionValidator from '../validators/deduction.validator'
 import { validate } from '../middleware/validate'
-import { authenticate } from '../middleware/auth'
+import { authMiddleware } from '../middleware/auth'
 
-const router = Router()
+export const deductionsRouter = Router()
 
 // All routes require authentication
-router.use(authenticate)
+deductionsRouter.use(authMiddleware)
 
 /**
  * @route   GET /api/deductions
  * @desc    Get all deductions with optional filtering
  * @access  Private
  */
-router.get(
+deductionsRouter.get(
   '/',
   deductionValidator.getDeductionsValidator,
   validate,
@@ -26,7 +26,7 @@ router.get(
  * @desc    Get deduction statistics for an employee
  * @access  Private
  */
-router.get(
+deductionsRouter.get(
   '/stats/employee/:employeeId',
   deductionValidator.getEmployeeDeductionStatsValidator,
   validate,
@@ -38,7 +38,7 @@ router.get(
  * @desc    Create a new deduction
  * @access  Private
  */
-router.post(
+deductionsRouter.post(
   '/',
   deductionValidator.createDeductionValidator,
   validate,
@@ -50,7 +50,7 @@ router.post(
  * @desc    Get a single deduction by ID
  * @access  Private
  */
-router.get(
+deductionsRouter.get(
   '/:id',
   deductionController.getDeductionById
 )
@@ -60,7 +60,7 @@ router.get(
  * @desc    Update a deduction
  * @access  Private
  */
-router.patch(
+deductionsRouter.patch(
   '/:id',
   deductionValidator.updateDeductionValidator,
   validate,
@@ -72,7 +72,7 @@ router.patch(
  * @desc    Delete a deduction
  * @access  Private
  */
-router.delete(
+deductionsRouter.delete(
   '/:id',
   deductionController.deleteDeduction
 )
@@ -82,7 +82,7 @@ router.delete(
  * @desc    Apply deduction to payroll
  * @access  Private
  */
-router.post(
+deductionsRouter.post(
   '/:id/apply',
   deductionValidator.applyDeductionValidator,
   validate,
@@ -94,11 +94,9 @@ router.post(
  * @desc    Recalculate payroll with all deductions
  * @access  Private
  */
-router.post(
+deductionsRouter.post(
   '/payroll/:id/recalculate',
   deductionValidator.recalculatePayrollValidator,
   validate,
   deductionController.recalculatePayroll
 )
-
-export default router
