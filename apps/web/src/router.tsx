@@ -20,6 +20,7 @@ import {
 } from '@/pages/Finance'
 import { ClientsPage, SuppliersPage } from '@/pages/Suppliers'
 import { AnalyticsPage } from '@/pages/Analytics'
+import { SettingsPage } from '@/pages/Settings'
 
 export default function AppRouter() {
   return (
@@ -52,6 +53,8 @@ export default function AppRouter() {
       <Route path="/suppliers/clients" element={<ClientsPage />} />
       {/* Analytics Route */}
       <Route path="/analytics" element={<AnalyticsPage />} />
+      {/* Settings Route */}
+      <Route path="/settings" element={<SettingsPage />} />
       {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}
