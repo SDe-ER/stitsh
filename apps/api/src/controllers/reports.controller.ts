@@ -90,7 +90,7 @@ export class ReportsController {
   async runReport(req: Request, res: Response) {
     try {
       const body = runReportSchema.parse(req.body)
-      const userId = req.user?.id || 'unknown'
+      const userId = req.user?.userId || 'unknown'
 
       const run = await reportsService.runReport(userId, body)
 
@@ -211,7 +211,7 @@ export class ReportsController {
     try {
       const { runId } = req.params
       const body = exportReportSchema.parse({ ...req.body, runId })
-      const userId = req.user?.id || 'unknown'
+      const userId = req.user?.userId || 'unknown'
 
       const exportRecord = await reportsService.exportReport(userId, body)
 

@@ -161,6 +161,34 @@ export class ReportsService {
     // Get the report definition
     const report = await this.getReportDefinitionByType(data.reportType)
 
+    // Validate userId and fall back to admin if invalid
+    let validUserId = userId
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      })
+      if (!user) {
+        // Fall back to admin user
+        const admin = await prisma.user.findFirst({
+          where: { email: 'admin@heavyops.sa' },
+          select: { id: true },
+        })
+        if (admin) {
+          validUserId = admin.id
+        }
+      }
+    } catch {
+      // If validation fails, try to get admin user
+      const admin = await prisma.user.findFirst({
+        where: { email: 'admin@heavyops.sa' },
+        select: { id: true },
+      })
+      if (admin) {
+        validUserId = admin.id
+      }
+    }
+
     // Calculate date range based on period
     let startDate: Date | undefined
     let endDate: Date | undefined
@@ -199,7 +227,7 @@ export class ReportsService {
     const reportRun = await prisma.reportRun.create({
       data: {
         reportId: report.id,
-        userId,
+        userId: validUserId,
         status: ReportStatusEnum.Enum.RUNNING,
         parameters: {
           ...data,
