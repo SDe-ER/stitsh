@@ -208,11 +208,13 @@ model User {
 
   // Relations
   sessions         Session[]
-  managedProjects  Project[]      @relation("ProjectManager")
-  approvedExpenses Expense[]      @relation("ExpenseApprover")
+  managedProjects  Project[]              @relation("ProjectManager")
+  approvedExpenses Expense[]              @relation("ExpenseApprover")
   notifications    Notification[]
-  createdAtBy      Alert[]        @relation("AlertCreatedBy")
+  createdAtBy      Alert[]                @relation("AlertCreatedBy")
   reportRuns       ReportRun[]
+  uploadedDocs     ProjectDocument[]      @relation("ProjectDocumentUploader")
+  createdLogs      ProjectDailyLog[]      @relation("DailyLogCreator")
 
   @@index([email])
   @@index([role])
@@ -344,8 +346,8 @@ model Project {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  client         Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  manager        User?              @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+  client         Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  manager        User?                @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
   financial      ProjectFinancial?
   milestones     ProjectMilestone[]
   employees      Employee[]
@@ -353,8 +355,10 @@ model Project {
   invoices       Invoice[]
   expenses       Expense[]
   purchaseOrders PurchaseOrder[]
-  deductions     Deduction[]        @relation("DeductionProject")
-  costEntries    ProjectCostEntry[] @relation("ProjectCostEntries")
+  deductions     Deduction[]          @relation("DeductionProject")
+  costEntries    ProjectCostEntry[]   @relation("ProjectCostEntries")
+  documents      ProjectDocument[]
+  dailyLogs      ProjectDailyLog[]
 
   @@index([code])
   @@index([clientId])
@@ -916,4 +920,95 @@ model ReportExport {
   @@index([status])
   @@index([createdAt])
   @@map("report_exports")
+}
+
+// ============================================================================
+// 9. PROJECT DOCUMENTS & DAILY LOGS
+// ============================================================================
+
+model ProjectDocument {
+  id          String      @id @default(cuid())
+  projectId   String      @map("project_id")
+  name        String
+  nameAr      String?     @map("name_ar")
+  type        String      // 'CONTRACT', 'DRAWING', 'PERMIT', 'INVOICE', 'PHOTO', 'REPORT', 'OTHER'
+  fileUrl     String      @map("file_url")
+  fileName    String      @map("file_name")
+  fileSize    Int?        @map("file_size") // in bytes
+  mimeType    String?     @map("mime_type")
+  description String?
+  uploadedBy  String      @map("uploaded_by")
+  tags        Json?       @default("[]") // Array of tag strings
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader  User    @relation("ProjectDocumentUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([type])
+  @@index([uploadedBy])
+  @@index([createdAt])
+  @@map("project_documents")
+}
+
+model ProjectDailyLog {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  logDate     DateTime @map("log_date") @default(now())
+  shift       String   // 'MORNING', 'AFTERNOON', 'NIGHT'
+  weather     String?
+  temperature Float?   // in Celsius
+  notes       String?
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  project    Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator    User                   @relation("DailyLogCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  activities ProjectDailyActivity[]
+  equipment   ProjectDailyEquipment[]
+
+  @@index([projectId])
+  @@index([logDate])
+  @@index([shift])
+  @@map("project_daily_logs")
+}
+
+model ProjectDailyActivity {
+  id          String             @id @default(cuid())
+  logId       String             @map("log_id")
+  activityType String            @map("activity_type") // 'EXCAVATION', 'CONCRETING', 'ELECTRICAL', 'PLUMBING', 'OTHER'
+  description String
+  location    String?
+  status      String             // 'COMPLETED', 'IN_PROGRESS', 'DELAYED'
+  workerCount Int?               @map("worker_count")
+  hours       Float?
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  log ProjectDailyLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+  @@index([activityType])
+  @@map("project_daily_activities")
+}
+
+model ProjectDailyEquipment {
+  id            String   @id @default(cuid())
+  logId         String   @map("log_id")
+  equipmentId   String   @map("equipment_id")
+  operatorId    String?  @map("operator_id")
+  task          String?
+  hours         Float
+  status        String   // 'ACTIVE', 'IDLE', 'MAINTENANCE'
+  fuelUsed      Float?   @map("fuel_used") // in liters
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  log      ProjectDailyLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+  @@index([equipmentId])
+  @@map("project_daily_equipment")
 }

@@ -8,6 +8,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { authRouter } from './routes/auth.js'
 import { projectsRouter } from './routes/projects.js'
+import { projectsDocumentsRouter } from './routes/projects-documents.js'
 import { employeesRouter } from './routes/employees.js'
 import { employeeDocumentsRouter } from './routes/employee-documents.js'
 import { equipmentRouter } from './routes/equipment.js'
@@ -109,6 +110,7 @@ app.get('/api/health', (req, res) => {
 // ============================================================================
 app.use('/api/auth', authRouter)
 app.use('/api/projects', projectsRouter)
+app.use('/api/projects', projectsDocumentsRouter)
 app.use('/api/employees', employeesRouter)
 app.use('/api/employees', employeeDocumentsRouter)
 app.use('/api/equipment', equipmentRouter)
