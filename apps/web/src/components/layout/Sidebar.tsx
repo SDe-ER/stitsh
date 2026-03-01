@@ -49,6 +49,7 @@ const menuItems: MenuItem[] = [
       { id: 'suppliers-clients', label: 'Clients', labelAr: 'العملاء', path: '/suppliers/clients' },
     ],
   },
+  { id: 'reports', label: 'التقارير', labelAr: 'التقارير', icon: '📊', path: '/reports' },
   { id: 'analytics', label: 'التحليلات المتقدمة', labelAr: 'التحليلات', icon: '🤖', path: '/analytics' },
   { id: 'settings', label: 'الإعدادات', labelAr: 'الإعدادات', icon: '⚙️', path: '/settings' },
 ]

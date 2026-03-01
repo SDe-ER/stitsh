@@ -100,6 +100,21 @@ enum DeductionStatus {
   APPLIED
 }
 
+enum DocumentType {
+  ID_CARD
+  PASSPORT
+  DRIVING_LICENSE
+  MEDICAL_INSURANCE
+  IQAMA
+  OTHER
+}
+
+enum DocumentStatus {
+  VALID
+  EXPIRING
+  EXPIRED
+}
+
 enum PurchaseOrderStatus {
   DRAFT
   PENDING
@@ -138,34 +153,71 @@ enum AlertType {
 }
 
 // ============================================================================
+// REPORTS MODULE ENUMS
+// ============================================================================
+
+enum ReportType {
+  PROJECT_PROFITABILITY
+  EQUIPMENT_OPERATION
+  SUPPLIER_STATEMENT
+  LABOR_COSTS
+  FUEL_CONSUMPTION
+  ACCIDENT_LOG
+  VAT_SUMMARY
+  PAYROLL_SUMMARY
+  EQUIPMENT_UTILIZATION
+  DOCUMENT_EXPIRY
+}
+
+enum ReportStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ExportFormat {
+  PDF
+  EXCEL
+  CSV
+}
+
+enum ExportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================================
 // 1. USERS & AUTHENTICATION
 // ============================================================================
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  nameAr        String?   @map("name_ar")
-  email         String    @unique
-  passwordHash  String    @map("password_hash")
-  role          UserRole  @default(VIEWER)
-  avatar        String?
-  phone         String?
-  isActive      Boolean   @default(true) @map("is_active")
-  lastLoginAt   DateTime? @map("last_login_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id           String    @id @default(cuid())
+  name         String
+  nameAr       String?   @map("name_ar")
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(VIEWER)
+  avatar       String?
+  phone        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  sessions        Session[]
-  managedProjects Project[]  @relation("ProjectManager")
-  approvedExpenses Expense[]  @relation("ExpenseApprover")
-  notifications   Notification[]
-  createdAtBy     Alert[]     @relation("AlertCreatedBy")
+  sessions         Session[]
+  managedProjects  Project[]      @relation("ProjectManager")
+  approvedExpenses Expense[]      @relation("ExpenseApprover")
+  notifications    Notification[]
+  createdAtBy      Alert[]        @relation("AlertCreatedBy")
+  reportRuns       ReportRun[]
 
-  @@map("users")
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@map("users")
 }
 
 model Session {
@@ -178,10 +230,10 @@ model Session {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("sessions")
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+  @@map("sessions")
 }
 
 // ============================================================================
@@ -189,27 +241,27 @@ model Session {
 // ============================================================================
 
 model Client {
-  id             String   @id @default(cuid())
-  name           String
-  nameAr         String?  @map("name_ar")
-  contactPerson  String?  @map("contact_person")
-  phone          String?
-  email          String?
-  address        String?
-  city           String?
-  country        String?  @default("Saudi Arabia")
-  crNumber       String?  @map("cr_number")
-  vatNumber      String?  @map("vat_number")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String?  @map("name_ar")
+  contactPerson String?  @map("contact_person")
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  country       String?  @default("Saudi Arabia")
+  crNumber      String?  @map("cr_number")
+  vatNumber     String?  @map("vat_number")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  projects        Project[]
-  invoices        Invoice[]
+  projects Project[]
+  invoices Invoice[]
 
-  @@map("clients")
   @@index([name])
   @@index([crNumber])
+  @@map("clients")
 }
 
 model Supplier {
@@ -221,7 +273,7 @@ model Supplier {
   email         String?
   address       String?
   category      String?
-  rating        Int?     @db.SmallInt
+  rating        Int?
   taxNumber     String?  @map("tax_number")
   crNumber      String?  @map("cr_number")
   isActive      Boolean  @default(true) @map("is_active")
@@ -231,10 +283,10 @@ model Supplier {
   // Relations
   purchaseOrders PurchaseOrder[]
 
-  @@map("suppliers")
   @@index([name])
   @@index([category])
   @@index([isActive])
+  @@map("suppliers")
 }
 
 model PurchaseOrder {
@@ -257,11 +309,11 @@ model PurchaseOrder {
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  @@map("purchase_orders")
   @@index([supplierId])
   @@index([projectId])
   @@index([status])
   @@index([orderNumber])
+  @@map("purchase_orders")
 }
 
 // ============================================================================
@@ -276,7 +328,7 @@ model Project {
   clientId        String        @map("client_id")
   status          ProjectStatus @default(PLANNING)
   budget          Float?
-  actualCost      Float?        @map("actual_cost") @default(0)
+  actualCost      Float?        @default(0) @map("actual_cost")
   startDate       DateTime?     @map("start_date")
   endDate         DateTime?     @map("end_date")
   actualEndDate   DateTime?     @map("actual_end_date")
@@ -292,42 +344,42 @@ model Project {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  client          Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  manager         User?               @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
-  financial       ProjectFinancial?
-  milestones      ProjectMilestone[]
-  employees       Employee[]
-  equipment       Equipment[]
-  invoices        Invoice[]
-  expenses        Expense[]
-  purchaseOrders  PurchaseOrder[]
-  deductions      Deduction[]         @relation("DeductionProject")
-  costEntries     ProjectCostEntry[] @relation("ProjectCostEntries")
+  client         Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  manager        User?              @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+  financial      ProjectFinancial?
+  milestones     ProjectMilestone[]
+  employees      Employee[]
+  equipment      Equipment[]
+  invoices       Invoice[]
+  expenses       Expense[]
+  purchaseOrders PurchaseOrder[]
+  deductions     Deduction[]        @relation("DeductionProject")
+  costEntries    ProjectCostEntry[] @relation("ProjectCostEntries")
 
-  @@map("projects")
   @@index([code])
   @@index([clientId])
   @@index([managerId])
   @@index([status])
   @@index([startDate])
+  @@map("projects")
 }
 
 model ProjectFinancial {
-  id              String    @id @default(cuid())
-  projectId       String    @unique @map("project_id")
-  revenue         Float     @default(0)
-  expenses        Float     @default(0)
-  profit          Float     @default(0)
-  profitMargin    Float?    @map("profit_margin")
-  pendingPayments Float     @default(0) @map("pending_payments")
-  collectedAmount Float     @default(0) @map("collected_amount")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  projectId       String   @unique @map("project_id")
+  revenue         Float    @default(0)
+  expenses        Float    @default(0)
+  profit          Float    @default(0)
+  profitMargin    Float?   @map("profit_margin")
+  pendingPayments Float    @default(0) @map("pending_payments")
+  collectedAmount Float    @default(0) @map("collected_amount")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@map("project_financials")
   @@index([projectId])
+  @@map("project_financials")
 }
 
 model ProjectMilestone {
@@ -346,10 +398,10 @@ model ProjectMilestone {
   // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@map("project_milestones")
   @@index([projectId])
   @@index([dueDate])
   @@index([isCompleted])
+  @@map("project_milestones")
 }
 
 // ============================================================================
@@ -357,71 +409,97 @@ model ProjectMilestone {
 // ============================================================================
 
 model Employee {
-  id              String         @id @default(cuid())
-  name            String
-  nameAr          String?        @map("name_ar")
-  employeeId      String         @unique @map("employee_id")
-  nationality     String
-  jobTitle        String         @map("job_title")
-  department      String
-  salary          Float
-  iqamaNumber     String?        @unique @map("iqama_number")
-  iqamaExpiry     DateTime?      @map("iqama_expiry")
-  passportNumber  String?        @unique @map("passport_number")
-  passportExpiry  DateTime?      @map("passport_expiry")
-  phone           String
-  email           String?
-  projectId       String?        @map("project_id")
-  status          EmployeeStatus @default(ACTIVE)
-  dateOfBirth     DateTime?      @map("date_of_birth")
-  joinDate        DateTime       @default(now()) @map("join_date")
-  endDate         DateTime?      @map("end_date")
-  bankName        String?        @map("bank_name")
-  bankAccount     String?        @map("bank_account")
-  iban            String?
-  address         String?
-  emergencyContact String?       @map("emergency_contact")
-  emergencyPhone  String?        @map("emergency_phone")
-  photo           String?
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  id               String         @id @default(cuid())
+  name             String
+  nameAr           String?        @map("name_ar")
+  employeeId       String         @unique @map("employee_id")
+  nationality      String
+  jobTitle         String         @map("job_title")
+  department       String
+  salary           Float
+  salaryDecimal    Decimal?       @db.Decimal(12,2) @map("salary_decimal")
+  iqamaNumber      String?        @unique @map("iqama_number")
+  iqamaExpiry      DateTime?      @map("iqama_expiry")
+  passportNumber   String?        @unique @map("passport_number")
+  passportExpiry   DateTime?      @map("passport_expiry")
+  phone            String
+  email            String?
+  projectId        String?        @map("project_id")
+  status           EmployeeStatus @default(ACTIVE)
+  dateOfBirth      DateTime?      @map("date_of_birth")
+  joinDate         DateTime       @default(now()) @map("join_date")
+  endDate          DateTime?      @map("end_date")
+  bankName         String?        @map("bank_name")
+  bankAccount      String?        @map("bank_account")
+  iban             String?
+  address          String?
+  emergencyContact String?        @map("emergency_contact")
+  emergencyPhone   String?        @map("emergency_phone")
+  photo            String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   // Relations
-  project    Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project    Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
   attendance Attendance[]
   payroll    Payroll[]
   deductions Deduction[]
+  documents  EmployeeDocument[]
 
-  @@map("employees")
   @@index([employeeId])
   @@index([projectId])
   @@index([iqamaNumber])
   @@index([passportNumber])
   @@index([status])
   @@index([department])
+  @@map("employees")
 }
 
-model Attendance {
-  id        String          @id @default(cuid())
+model EmployeeDocument {
+  id         String         @id @default(cuid())
   employeeId String         @map("employee_id")
-  date      DateTime        @db.Date
-  checkIn   DateTime?       @map("check_in")
-  checkOut  DateTime?       @map("check_out")
-  status    AttendanceStatus @default(PRESENT)
-  workHours Float?          @map("work_hours")
-  overtimeHours Float?      @map("overtime_hours")
-  notes     String?
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  type       DocumentType
+  fileUrl    String         @map("file_url")
+  fileName   String?        @map("file_name")
+  fileSize   Int?           @map("file_size")
+  mimeType   String?        @map("mime_type")
+  status     DocumentStatus @default(VALID)
+  expiryDate DateTime?      @map("expiry_date")
+  notes      String?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
 
   // Relations
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@map("attendance")
+  @@index([employeeId])
+  @@index([type])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("employee_documents")
+}
+
+model Attendance {
+  id            String           @id @default(cuid())
+  employeeId    String           @map("employee_id")
+  date          DateTime
+  checkIn       DateTime?        @map("check_in")
+  checkOut      DateTime?        @map("check_out")
+  status        AttendanceStatus @default(PRESENT)
+  workHours     Float?           @map("work_hours")
+  overtimeHours Float?           @map("overtime_hours")
+  notes         String?
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
   @@index([status])
+  @@map("attendance")
 }
 
 model Payroll {
@@ -430,12 +508,19 @@ model Payroll {
   month            Int
   year             Int
   basicSalary      Float     @map("basic_salary")
+  basicSalaryDecimal Decimal? @db.Decimal(12,2) @map("basic_salary_decimal")
   housing          Float?    @default(0)
+  housingDecimal   Decimal? @db.Decimal(12,2) @map("housing_decimal")
   transportation   Float?    @default(0)
+  transportationDecimal Decimal? @db.Decimal(12,2) @map("transportation_decimal")
   overtime         Float?    @default(0)
+  overtimeDecimal  Decimal? @db.Decimal(12,2) @map("overtime_decimal")
   deductionsAmount Float?    @default(0) @map("deductions_amount")
+  deductionsAmountDecimal Decimal? @db.Decimal(12,2) @map("deductions_amount_decimal")
   bonuses          Float?    @default(0)
+  bonusesDecimal   Decimal? @db.Decimal(12,2) @map("bonuses_decimal")
   netSalary        Float     @map("net_salary")
+  netSalaryDecimal Decimal? @db.Decimal(12,2) @map("net_salary_decimal")
   isPaid           Boolean   @default(false) @map("is_paid")
   paidAt           DateTime? @map("paid_at")
   paymentMethod    String?   @map("payment_method")
@@ -447,39 +532,39 @@ model Payroll {
   employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   deductions Deduction[]
 
-  @@map("payroll")
   @@unique([employeeId, month, year])
   @@index([employeeId])
   @@index([month, year])
   @@index([isPaid])
+  @@map("payroll")
 }
 
 model Deduction {
-  id              String          @id @default(cuid())
-  employeeId      String          @map("employee_id")
-  payrollId       String?         @map("payroll_id")
-  projectId       String          @map("project_id")
-  type            DeductionType
-  status          DeductionStatus  @default(PENDING)
-  amount          Decimal         @db.Decimal(10, 2)
-  hours           Float?          @default(0)
-  minutes         Float?          @default(0)
-  date            DateTime        @db.Date
-  month           Int
-  year            Int
-  reason          String?
-  notes           String?
-  appliedAt       DateTime?       @map("applied_at")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id         String          @id @default(cuid())
+  employeeId String          @map("employee_id")
+  payrollId  String?         @map("payroll_id")
+  projectId  String          @map("project_id")
+  type       DeductionType
+  status     DeductionStatus @default(PENDING)
+  amount     Float
+  amountDecimal Decimal?      @db.Decimal(12,2) @map("amount_decimal")
+  hours      Float?          @default(0)
+  minutes    Float?          @default(0)
+  date       DateTime
+  month      Int
+  year       Int
+  reason     String?
+  notes      String?
+  appliedAt  DateTime?       @map("applied_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  payroll  Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
-  project  Project  @relation("DeductionProject", fields: [projectId], references: [id], onDelete: Restrict)
+  employee  Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payroll   Payroll?          @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  project   Project           @relation("DeductionProject", fields: [projectId], references: [id], onDelete: Restrict)
   costEntry ProjectCostEntry?
 
-  @@map("deductions")
   @@index([employeeId])
   @@index([payrollId])
   @@index([projectId])
@@ -487,28 +572,30 @@ model Deduction {
   @@index([status])
   @@index([date])
   @@index([month, year])
+  @@map("deductions")
 }
 
 model ProjectCostEntry {
-  id          String    @id @default(cuid())
-  projectId   String    @map("project_id")
-  deductionId String    @unique @map("deduction_id")
-  category    String    @default("LABOR")
-  amount      Decimal   @db.Decimal(10, 2)
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  deductionId String   @unique @map("deduction_id")
+  category    String   @default("LABOR")
+  amount      Float
+  amountDecimal Decimal? @db.Decimal(12,2) @map("amount_decimal")
   description String?
-  date        DateTime  @default(now()) @map("date")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  date        DateTime @default(now()) @map("date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   project   Project   @relation("ProjectCostEntries", fields: [projectId], references: [id], onDelete: Cascade)
   deduction Deduction @relation(fields: [deductionId], references: [id], onDelete: Cascade)
 
-  @@map("project_cost_entries")
   @@index([projectId])
   @@index([deductionId])
   @@index([category])
   @@index([date])
+  @@map("project_cost_entries")
 }
 
 // ============================================================================
@@ -516,39 +603,54 @@ model ProjectCostEntry {
 // ============================================================================
 
 model Equipment {
-  id                   String          @id @default(cuid())
-  name                 String
-  nameAr               String?         @map("name_ar")
-  code                 String          @unique
-  type                 EquipmentType
-  brand                String?
-  model                String?
-  serialNumber         String?         @unique @map("serial_number")
-  status               EquipmentStatus @default(IDLE)
-  currentProjectId     String?         @map("current_project_id")
-  purchaseDate         DateTime?       @map("purchase_date")
-  purchaseCost         Float?          @map("purchase_cost")
-  lastMaintenanceDate  DateTime?       @map("last_maintenance_date")
-  nextMaintenanceDate  DateTime?       @map("next_maintenance_date")
-  hourlyCost           Float?          @map("hourly_cost")
-  dailyCost            Float?          @map("daily_cost")
-  location             String?
-  operator             String?
-  fuelConsumption      Float?          @map("fuel_consumption")
-  description          String?
-  createdAt            DateTime        @default(now()) @map("created_at")
-  updatedAt            DateTime        @updatedAt @map("updated_at")
+  id                  String          @id @default(cuid())
+  name                String
+  nameAr              String?         @map("name_ar")
+  code                String          @unique
+  type                EquipmentType
+  brand               String?
+  model               String?
+  serialNumber        String?         @unique @map("serial_number")
+  status              EquipmentStatus @default(IDLE)
+  currentProjectId    String?         @map("current_project_id")
+  purchaseDate        DateTime?       @map("purchase_date")
+  purchaseCost        Float?          @map("purchase_cost")
+  lastMaintenanceDate DateTime?       @map("last_maintenance_date")
+  nextMaintenanceDate DateTime?       @map("next_maintenance_date")
+  hourlyCost          Float?          @map("hourly_cost")
+  dailyCost           Float?          @map("daily_cost")
+  location            String?
+  operator            String?
+  fuelConsumption     Float?          @map("fuel_consumption")
+  description         String?
+
+  // New fields for equipment detail page
+  plateNumber          String? @map("plate_number") // رقم اللوحة
+  manufacturingYear    Int?    @map("manufacturing_year") // سنة الصنع
+  totalWorkHours       Float   @default(0) @map("total_work_hours") // إجمالي ساعات العمل
+  nextMaintenanceHours Float?  @map("next_maintenance_hours") // ساعات حتى الصيانة القادمة
+  hourlyRate           Float?  @map("hourly_rate") // سعر الساعة
+  totalOperatingCost   Float   @default(0) @map("total_operating_cost") // تكلفة التشغيل الكلية
+  imageUrl             String? @map("image_url") // صورة المعدة
+  operatorId           String? @map("operator_id") // المشغل الحالي (Employee reference)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  project           Project?           @relation(fields: [currentProjectId], references: [id], onDelete: SetNull)
+  project            Project?            @relation(fields: [currentProjectId], references: [id], onDelete: SetNull)
   maintenanceRecords MaintenanceRecord[]
+  documents          EquipmentDocument[]
+  parts              EquipmentPart[]
 
-  @@map("equipment")
   @@index([code])
   @@index([type])
   @@index([status])
   @@index([currentProjectId])
   @@index([nextMaintenanceDate])
+  @@index([plateNumber])
+  @@index([operatorId])
+  @@map("equipment")
 }
 
 model MaintenanceRecord {
@@ -568,11 +670,56 @@ model MaintenanceRecord {
   // Relations
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
-  @@map("maintenance_records")
   @@index([equipmentId])
   @@index([date])
   @@index([type])
   @@index([nextDueDate])
+  @@map("maintenance_records")
+}
+
+model EquipmentDocument {
+  id           String    @id @default(cuid())
+  equipmentId  String    @map("equipment_id")
+  documentType String    @map("document_type") // e.g., "registration", "insurance", "tuv", "manual"
+  documentName String    @map("document_name") // Arabic name
+  fileUrl      String    @map("file_url")
+  fileName     String?   @map("file_name")
+  mimeType     String?   @map("mime_type") // image/jpeg, application/pdf
+  fileSize     Int?      @map("file_size") // in bytes
+  expiryDate   DateTime? @map("expiry_date") // تاريخ الانتهاء (optional)
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@index([documentType])
+  @@index([expiryDate])
+  @@map("equipment_documents")
+}
+
+model EquipmentPart {
+  id                  String    @id @default(cuid())
+  equipmentId         String    @map("equipment_id")
+  name                String // اسم القطعة
+  nameAr              String?   @map("name_ar") // الاسم بالعربي
+  quantity            Int       @default(0) // الكمية
+  unit                String?   @default("قطعة") // الوحدة
+  lastChangedDate     DateTime? @map("last_changed_date") // تاريخ آخر تغيير
+  lifeSpanHours       Int?      @map("life_span_hours") // العمر الافتراضي بالساعات
+  remainingPercentage Int?      @default(100) @map("remaining_percentage") // النسبة المتبقية
+  remainingHours      Int?      @map("remaining_hours") // الساعات المتبقية
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@map("equipment_parts")
 }
 
 // ============================================================================
@@ -580,62 +727,62 @@ model MaintenanceRecord {
 // ============================================================================
 
 model Invoice {
-  id           String        @id @default(cuid())
-  projectId    String        @map("project_id")
-  clientId     String        @map("client_id")
-  invoiceNumber String       @unique @map("invoice_number")
-  amount       Float
-  tax          Float         @default(0)
-  taxRate      Float?        @map("tax_rate") @default(0.15)
-  total        Float
-  status       InvoiceStatus @default(DRAFT)
-  issueDate    DateTime      @default(now()) @map("issue_date")
-  dueDate      DateTime      @map("due_date")
-  paidDate     DateTime?     @map("paid_date")
-  paymentMethod String?      @map("payment_method")
-  notes        String?
-  terms        String?
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id            String        @id @default(cuid())
+  projectId     String        @map("project_id")
+  clientId      String        @map("client_id")
+  invoiceNumber String        @unique @map("invoice_number")
+  amount        Float
+  tax           Float         @default(0)
+  taxRate       Float?        @default(0.15) @map("tax_rate")
+  total         Float
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @default(now()) @map("issue_date")
+  dueDate       DateTime      @map("due_date")
+  paidDate      DateTime?     @map("paid_date")
+  paymentMethod String?       @map("payment_method")
+  notes         String?
+  terms         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
   // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  @@map("invoices")
   @@index([projectId])
   @@index([clientId])
   @@index([invoiceNumber])
   @@index([status])
   @@index([dueDate])
+  @@map("invoices")
 }
 
 model Expense {
-  id          String          @id @default(cuid())
-  projectId   String?         @map("project_id")
-  category    ExpenseCategory
-  amount      Float
-  description String?
-  date        DateTime        @default(now())
-  approvedBy  String?         @map("approved_by")
-  isApproved  Boolean         @default(false) @map("is_approved")
-  receiptUrl  String?         @map("receipt_url")
-  vendor      String?
-  invoiceNumber String?       @map("invoice_number")
-  paymentMethod String?       @map("payment_method")
-  notes       String?
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id            String          @id @default(cuid())
+  projectId     String?         @map("project_id")
+  category      ExpenseCategory
+  amount        Float
+  description   String?
+  date          DateTime        @default(now())
+  approvedBy    String?         @map("approved_by")
+  isApproved    Boolean         @default(false) @map("is_approved")
+  receiptUrl    String?         @map("receipt_url")
+  vendor        String?
+  invoiceNumber String?         @map("invoice_number")
+  paymentMethod String?         @map("payment_method")
+  notes         String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  approver   User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approver User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
 
-  @@map("expenses")
   @@index([projectId])
   @@index([category])
   @@index([date])
   @@index([isApproved])
+  @@map("expenses")
 }
 
 // ============================================================================
@@ -643,51 +790,128 @@ model Expense {
 // ============================================================================
 
 model Notification {
-  id        String          @id @default(cuid())
-  userId    String          @map("user_id")
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
   type      NotificationType
   title     String
-  titleAr   String?         @map("title_ar")
+  titleAr   String?          @map("title_ar")
   message   String
-  messageAr String?         @map("message_ar")
-  isRead    Boolean         @default(false) @map("is_read")
-  readAt    DateTime?       @map("read_at")
+  messageAr String?          @map("message_ar")
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
   link      String?
-  createdAt DateTime        @default(now()) @map("created_at")
+  createdAt DateTime         @default(now()) @map("created_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("notifications")
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+  @@map("notifications")
 }
 
 model Alert {
-  id         String      @id @default(cuid())
+  id         String        @id @default(cuid())
   type       AlertType
   severity   AlertSeverity
   title      String
-  titleAr    String?     @map("title_ar")
+  titleAr    String?       @map("title_ar")
   message    String
-  messageAr  String?     @map("message_ar")
-  entityType String?     @map("entity_type")
-  entityId   String?     @map("entity_id")
-  isResolved Boolean     @default(false) @map("is_resolved")
-  resolvedAt DateTime?   @map("resolved_at")
-  resolvedBy String?     @map("resolved_by")
-  createdAt  DateTime    @default(now()) @map("created_at")
-  createdBy  String?     @map("created_by")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
+  messageAr  String?       @map("message_ar")
+  entityType String?       @map("entity_type")
+  entityId   String?       @map("entity_id")
+  isResolved Boolean       @default(false) @map("is_resolved")
+  resolvedAt DateTime?     @map("resolved_at")
+  resolvedBy String?       @map("resolved_by")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  createdBy  String?       @map("created_by")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
 
   // Relations
   creator User? @relation("AlertCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
-  @@map("alerts")
   @@index([type])
   @@index([severity])
   @@index([isResolved])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@map("alerts")
+}
+
+// ============================================================================
+// 8. REPORTS MODULE
+// ============================================================================
+
+model ReportDefinition {
+  id          String     @id @default(cuid())
+  type        ReportType @unique
+  name        String
+  nameAr      String?    @map("name_ar")
+  description String?
+  descriptionAr String?  @map("description_ar")
+  category    String     // 'financial', 'projects', 'equipment', 'payroll', 'documents'
+  frequency   String     @default("manual") // 'daily', 'weekly', 'monthly', 'quarterly', 'manual'
+  icon        String     @default("assessment")
+  color       String     @default("blue")
+  filtersSchema Json?    @map("filters_schema") // JSON schema for filters
+  isActive    Boolean    @default(true) @map("is_active")
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  runs        ReportRun[]
+
+  @@index([category])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@map("report_definitions")
+}
+
+model ReportRun {
+  id          String      @id @default(cuid())
+  reportId    String      @map("report_id")
+  userId      String      @map("user_id")
+  status      ReportStatus @default(PENDING)
+  parameters  Json        // Filter parameters used
+  startDate   DateTime?   @map("start_date")
+  endDate     DateTime?   @map("end_date")
+  resultData  Json?       @map("result_data") // Cached result data
+  error       String?
+  startedAt   DateTime?   @map("started_at")
+  completedAt DateTime?   @map("completed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  report      ReportDefinition @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exports     ReportExport[]
+
+  @@index([reportId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("report_runs")
+}
+
+model ReportExport {
+  id          String       @id @default(cuid())
+  runId       String       @map("run_id")
+  format      ExportFormat
+  status      ExportStatus @default(PENDING)
+  fileUrl     String?      @map("file_url")
+  fileName    String?      @map("file_name")
+  fileSize    Int?         @map("file_size") // in bytes
+  error       String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  completedAt DateTime?    @map("completed_at")
+
+  // Relations
+  run         ReportRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("report_exports")
 }

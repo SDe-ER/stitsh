@@ -43,4 +43,9 @@ export type { PageHeaderProps, ActionButton } from './PageHeader'
 
 export { FileUpload } from './FileUpload'
 
+export { MultiFileUpload } from './MultiFileUpload'
+export type { UploadedFileMeta } from './MultiFileUpload'
+
 export { ImageCropModal } from './ImageCropModal'
+
+export { MaterialSymbol } from './MaterialSymbol'

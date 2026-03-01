@@ -11,6 +11,7 @@ import MaintenancePage from '@/pages/Maintenance/MaintenancePage'
 import { EquipmentOperationsPage } from '@/pages/EquipmentOperations'
 import { EmployeesListPage } from '@/pages/EmployeesList'
 import { EmployeeProfilePage } from '@/pages/EmployeeProfile'
+import { AddEmployeePage } from '@/pages/AddEmployee'
 import { WorkerProfilePage } from '@/pages/WorkerProfile'
 import { PayrollPage } from '@/pages/Payroll'
 import {
@@ -20,8 +21,10 @@ import {
   AuditReportPage,
 } from '@/pages/Finance'
 import { ClientsPage, SuppliersPage } from '@/pages/Suppliers'
+import { ProjectFinancialReportPage } from '@/pages/ProjectFinancialReport'
 import { AnalyticsPage } from '@/pages/Analytics'
 import { SettingsPage } from '@/pages/Settings'
+import ReportsPage from '@/pages/Reports/ReportsPage'
 
 export default function AppRouter() {
   return (
@@ -41,6 +44,7 @@ export default function AppRouter() {
       {/* HR Routes */}
       <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
       <Route path="/hr/employees" element={<EmployeesListPage />} />
+      <Route path="/hr/employees/new" element={<AddEmployeePage />} />
       <Route path="/hr/employees/:id" element={<EmployeeProfilePage />} />
       <Route path="/hr/workers/:id" element={<WorkerProfilePage />} />
       <Route path="/hr/payroll" element={<PayrollPage />} />
@@ -49,6 +53,8 @@ export default function AppRouter() {
       <Route path="/finance/invoices" element={<InvoicesPage />} />
       <Route path="/finance/expenses" element={<ExpensesPage />} />
       <Route path="/finance/audit" element={<AuditReportPage />} />
+      {/* Financial Report Route */}
+      <Route path="/financial-report/:id" element={<ProjectFinancialReportPage />} />
       {/* Suppliers & Clients Routes */}
       <Route path="/suppliers" element={<Navigate to="/suppliers/vendors" replace />} />
       <Route path="/suppliers/vendors" element={<SuppliersPage />} />
@@ -57,6 +63,8 @@ export default function AppRouter() {
       <Route path="/analytics" element={<AnalyticsPage />} />
       {/* Settings Route */}
       <Route path="/settings" element={<SettingsPage />} />
+      {/* Reports Routes */}
+      <Route path="/reports" element={<ReportsPage />} />
       {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}
