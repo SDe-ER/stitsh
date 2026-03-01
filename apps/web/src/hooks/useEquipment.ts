@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { equipmentService } from '@/services/equipment'
 
 // ============================================================================
 // TYPES
@@ -694,76 +695,124 @@ export function saveMaintenanceRecords(records: MaintenanceRecord[]): void {
 }
 
 // ============================================================================
+// API FETCH FUNCTIONS (with localStorage fallback)
+// ============================================================================
+async function fetchEquipment(filters?: { type?: EquipmentType; status?: EquipmentStatus; projectId?: string }): Promise<Equipment[]> {
+  try {
+    const result = await equipmentService.getAll(filters)
+    return result
+  } catch (error) {
+    console.warn('API fetch failed, using mock data:', error)
+  }
+
+  // Fallback to localStorage
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  let equipment = getEquipment()
+
+  if (filters?.type) equipment = equipment.filter(e => e.type === filters.type)
+  if (filters?.status) equipment = equipment.filter(e => e.status === filters.status)
+  if (filters?.projectId) equipment = equipment.filter(e => e.projectId === filters.projectId)
+
+  return equipment
+}
+
+async function fetchEquipmentById(id: string): Promise<Equipment> {
+  try {
+    return await equipmentService.getById(id)
+  } catch (error) {
+    console.warn('API fetch failed, using mock data:', error)
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  const equipment = getEquipment()
+  const eq = equipment.find(e => e.id === id)
+  if (!eq) throw new Error('Equipment not found')
+  return eq
+}
+
+// ============================================================================
 // HOOKS
 // ============================================================================
 export function useEquipment(filters?: { type?: EquipmentType; status?: EquipmentStatus; projectId?: string }) {
   return useQuery({
     queryKey: ['equipment', filters],
-    queryFn: () => {
+    queryFn: () => fetchEquipment(filters),
+    retry: false,
+    initialData: () => {
       let equipment = getEquipment()
       if (filters?.type) equipment = equipment.filter(e => e.type === filters.type)
       if (filters?.status) equipment = equipment.filter(e => e.status === filters.status)
       if (filters?.projectId) equipment = equipment.filter(e => e.projectId === filters.projectId)
       return equipment
     },
+    staleTime: 2 * 60 * 1000,
   })
 }
 
 export function useEquipmentDetail(id: string) {
   return useQuery({
     queryKey: ['equipment', id],
-    queryFn: () => getEquipment().find(e => e.id === id),
+    queryFn: () => fetchEquipmentById(id),
     enabled: !!id,
+    retry: false,
+    initialData: () => getEquipment().find(e => e.id === id),
+    staleTime: 1 * 60 * 1000,
   })
 }
 
 export function useCreateEquipment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreateEquipmentData) => {
-      const equipment = getEquipment()
-      const typeAr = equipmentTypeLabels[data.type].label
-      const ownership = data.ownership || 'owned'
-      const newEquipment: Equipment = {
-        id: `eq-${Date.now()}`,
-        code: data.code,
-        name: data.name,
-        nameAr: data.nameAr,
-        type: data.type,
-        typeAr,
-        brand: data.brand,
-        model: data.model,
-        year: data.year,
-        status: 'active',
-        statusAr: equipmentStatusLabels.active.label,
-        ownership,
-        ownershipAr: equipmentOwnershipLabels[ownership].label,
-        capacity: data.capacity,
-        capacityUnit: data.capacityUnit,
-        weight: data.weight,
-        power: data.power,
-        fuelCapacity: data.fuelCapacity,
-        serviceIntervalHours: data.serviceIntervalHours || 500,
-        lastServiceHours: 0,
-        totalHours: 0,
-        usagePercentage: 0,
-        purchaseCost: data.purchaseCost,
-        dailyOperatingCost: data.dailyOperatingCost,
-        hourlyRate: data.hourlyRate,
-        currentLocation: data.currentLocation,
-        currentLocationAr: data.currentLocationAr,
-        tuvDocumentUrl: data.tuvDocumentUrl,
-        tuvExpiryDate: data.tuvExpiryDate,
-        notes: data.notes,
-        notesAr: data.notesAr,
-        imageUrl: data.imageUrl,
-        totalMaintenanceCost: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+    mutationFn: async (data: CreateEquipmentData) => {
+      try {
+        return await equipmentService.create(data)
+      } catch (error) {
+        console.warn('API create failed, using localStorage:', error)
+        // Fallback to localStorage
+        const equipment = getEquipment()
+        const typeAr = equipmentTypeLabels[data.type].label
+        const ownership = data.ownership || 'owned'
+        const newEquipment: Equipment = {
+          id: `eq-${Date.now()}`,
+          code: data.code,
+          name: data.name,
+          nameAr: data.nameAr,
+          type: data.type,
+          typeAr,
+          brand: data.brand,
+          model: data.model,
+          year: data.year,
+          status: 'active',
+          statusAr: equipmentStatusLabels.active.label,
+          ownership,
+          ownershipAr: equipmentOwnershipLabels[ownership].label,
+          capacity: data.capacity,
+          capacityUnit: data.capacityUnit,
+          weight: data.weight,
+          power: data.power,
+          fuelCapacity: data.fuelCapacity,
+          serviceIntervalHours: data.serviceIntervalHours || 500,
+          lastServiceHours: 0,
+          totalHours: 0,
+          usagePercentage: 0,
+          purchaseCost: data.purchaseCost,
+          dailyOperatingCost: data.dailyOperatingCost,
+          hourlyRate: data.hourlyRate,
+          currentLocation: data.currentLocation,
+          currentLocationAr: data.currentLocationAr,
+          tuvDocumentUrl: data.tuvDocumentUrl,
+          tuvExpiryDate: data.tuvExpiryDate,
+          notes: data.notes,
+          notesAr: data.notesAr,
+          imageUrl: data.imageUrl,
+          totalMaintenanceCost: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        equipment.push(newEquipment)
+        saveEquipment(equipment)
+        return newEquipment
       }
-      equipment.push(newEquipment)
-      saveEquipment(equipment)
-      return newEquipment
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipment'] })
@@ -775,53 +824,59 @@ export function useCreateEquipment() {
 export function useUpdateEquipment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateEquipmentData }) => {
-      const equipment = getEquipment()
-      const index = equipment.findIndex(e => e.id === id)
-      if (index === -1) throw new Error('Equipment not found')
+    mutationFn: async ({ id, data }: { id: string; data: UpdateEquipmentData }) => {
+      try {
+        return await equipmentService.update(id, data)
+      } catch (error) {
+        console.warn('API update failed, using localStorage:', error)
+        // Fallback to localStorage
+        const equipment = getEquipment()
+        const index = equipment.findIndex(e => e.id === id)
+        if (index === -1) throw new Error('Equipment not found')
 
-      const updated = { ...equipment[index] }
-      if (data.code !== undefined) updated.code = data.code
-      if (data.name !== undefined) updated.name = data.name
-      if (data.nameAr !== undefined) updated.nameAr = data.nameAr
-      if (data.type !== undefined) {
-        updated.type = data.type
-        updated.typeAr = equipmentTypeLabels[data.type].label
-      }
-      if (data.brand !== undefined) updated.brand = data.brand
-      if (data.model !== undefined) updated.model = data.model
-      if (data.year !== undefined) updated.year = data.year
-      if (data.status !== undefined) {
-        updated.status = data.status
-        updated.statusAr = equipmentStatusLabels[data.status].label
-      }
-      if (data.ownership !== undefined) {
-        updated.ownership = data.ownership
-        updated.ownershipAr = equipmentOwnershipLabels[data.ownership].label
-      }
-      if (data.projectId !== undefined) updated.projectId = data.projectId
-      if (data.capacity !== undefined) updated.capacity = data.capacity
-      if (data.capacityUnit !== undefined) updated.capacityUnit = data.capacityUnit
-      if (data.weight !== undefined) updated.weight = data.weight
-      if (data.power !== undefined) updated.power = data.power
-      if (data.fuelCapacity !== undefined) updated.fuelCapacity = data.fuelCapacity
-      if (data.serviceIntervalHours !== undefined) updated.serviceIntervalHours = data.serviceIntervalHours
-      if (data.purchaseCost !== undefined) updated.purchaseCost = data.purchaseCost
-      if (data.dailyOperatingCost !== undefined) updated.dailyOperatingCost = data.dailyOperatingCost
-      if (data.hourlyRate !== undefined) updated.hourlyRate = data.hourlyRate
-      if (data.currentLocation !== undefined) updated.currentLocation = data.currentLocation
-      if (data.currentLocationAr !== undefined) updated.currentLocationAr = data.currentLocationAr
-      if (data.tuvDocumentUrl !== undefined) updated.tuvDocumentUrl = data.tuvDocumentUrl
-      if (data.tuvExpiryDate !== undefined) updated.tuvExpiryDate = data.tuvExpiryDate
-      if (data.notes !== undefined) updated.notes = data.notes
-      if (data.notesAr !== undefined) updated.notesAr = data.notesAr
-      if (data.imageUrl !== undefined) updated.imageUrl = data.imageUrl
-      if (data.totalHours !== undefined) updated.totalHours = data.totalHours
+        const updated = { ...equipment[index] }
+        if (data.code !== undefined) updated.code = data.code
+        if (data.name !== undefined) updated.name = data.name
+        if (data.nameAr !== undefined) updated.nameAr = data.nameAr
+        if (data.type !== undefined) {
+          updated.type = data.type
+          updated.typeAr = equipmentTypeLabels[data.type].label
+        }
+        if (data.brand !== undefined) updated.brand = data.brand
+        if (data.model !== undefined) updated.model = data.model
+        if (data.year !== undefined) updated.year = data.year
+        if (data.status !== undefined) {
+          updated.status = data.status
+          updated.statusAr = equipmentStatusLabels[data.status].label
+        }
+        if (data.ownership !== undefined) {
+          updated.ownership = data.ownership
+          updated.ownershipAr = equipmentOwnershipLabels[data.ownership].label
+        }
+        if (data.projectId !== undefined) updated.projectId = data.projectId
+        if (data.capacity !== undefined) updated.capacity = data.capacity
+        if (data.capacityUnit !== undefined) updated.capacityUnit = data.capacityUnit
+        if (data.weight !== undefined) updated.weight = data.weight
+        if (data.power !== undefined) updated.power = data.power
+        if (data.fuelCapacity !== undefined) updated.fuelCapacity = data.fuelCapacity
+        if (data.serviceIntervalHours !== undefined) updated.serviceIntervalHours = data.serviceIntervalHours
+        if (data.purchaseCost !== undefined) updated.purchaseCost = data.purchaseCost
+        if (data.dailyOperatingCost !== undefined) updated.dailyOperatingCost = data.dailyOperatingCost
+        if (data.hourlyRate !== undefined) updated.hourlyRate = data.hourlyRate
+        if (data.currentLocation !== undefined) updated.currentLocation = data.currentLocation
+        if (data.currentLocationAr !== undefined) updated.currentLocationAr = data.currentLocationAr
+        if (data.tuvDocumentUrl !== undefined) updated.tuvDocumentUrl = data.tuvDocumentUrl
+        if (data.tuvExpiryDate !== undefined) updated.tuvExpiryDate = data.tuvExpiryDate
+        if (data.notes !== undefined) updated.notes = data.notes
+        if (data.notesAr !== undefined) updated.notesAr = data.notesAr
+        if (data.imageUrl !== undefined) updated.imageUrl = data.imageUrl
+        if (data.totalHours !== undefined) updated.totalHours = data.totalHours
 
-      updated.updatedAt = new Date().toISOString()
-      equipment[index] = updated
-      saveEquipment(equipment)
-      return updated
+        updated.updatedAt = new Date().toISOString()
+        equipment[index] = updated
+        saveEquipment(equipment)
+        return updated
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipment'] })
@@ -833,11 +888,18 @@ export function useUpdateEquipment() {
 export function useDeleteEquipment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => {
-      const equipment = getEquipment()
-      const filtered = equipment.filter(e => e.id !== id)
-      saveEquipment(filtered)
-      return id
+    mutationFn: async (id: string) => {
+      try {
+        await equipmentService.delete(id)
+        return id
+      } catch (error) {
+        console.warn('API delete failed, using localStorage:', error)
+        // Fallback to localStorage
+        const equipment = getEquipment()
+        const filtered = equipment.filter(e => e.id !== id)
+        saveEquipment(filtered)
+        return id
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipment'] })
