@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { reportsController } from '@/controllers/reports.controller.js'
-import { authenticateToken } from '@/middleware/auth.js'
+import { authMiddleware } from '@/middleware/auth.js'
 
 const router = Router()
 
 // All routes require authentication
-router.use(authenticateToken)
+router.use(authMiddleware)
 
 // ============================================================================
 // REPORT DEFINITIONS
@@ -75,4 +75,4 @@ router.post('/:runId/export', reportsController.exportReport.bind(reportsControl
  */
 router.get('/exports/:id', reportsController.getExportById.bind(reportsController))
 
-export default router
+export const reportsRouter = router
