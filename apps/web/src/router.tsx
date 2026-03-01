@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Login } from '@/pages/Auth/Login'
 import { Dashboard } from '@/pages/Dashboard/Dashboard'
 import DashboardPage from '@/pages/DashboardPage/DashboardPage'
 import { Projects } from '@/pages/Projects/Projects'
@@ -29,6 +30,7 @@ import ReportsPage from '@/pages/Reports/ReportsPage'
 export default function AppRouter() {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/dashboard-old" element={<Dashboard />} />

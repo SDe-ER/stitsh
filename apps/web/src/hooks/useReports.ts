@@ -7,10 +7,11 @@ import type { ReportDefinition, ReportRun, ReportExport, RunReportParams, Report
 // HOOKS
 // ============================================================================
 
-export function useReports(filters?: { type?: ReportType; category?: string }) {
+export function useReports(filters?: { type?: ReportType; category?: string }, enabled = true) {
   return useQuery({
     queryKey: ['reports', filters],
     queryFn: () => reportsService.getAll(filters),
+    enabled: enabled && !!localStorage.getItem('token'),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -78,10 +79,11 @@ export function useExportReport() {
   })
 }
 
-export function useVATSummary() {
+export function useVATSummary(enabled = true) {
   return useQuery({
     queryKey: ['vatSummary'],
     queryFn: () => reportsService.getVATSummary(),
+    enabled: enabled && !!localStorage.getItem('token'),
     staleTime: 5 * 60 * 1000,
   })
 }
