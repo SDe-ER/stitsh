@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useReports, useRunReport, useVATSummary } from '@/hooks/useReports'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { MaterialSymbol } from '@/components/ui/MaterialSymbol'
 import { Button } from '@/components/ui/Button'
 import type { ReportType } from '@/services/reports'
@@ -137,25 +139,33 @@ export default function ReportsPage() {
     })
   }
 
-  return (
-    <div className="min-h-screen bg-[#f8fafc] p-8">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-slate-800">مركز التقارير الذكي</h2>
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-slate-500 hover:text-primary transition-colors relative">
-              <MaterialSymbol icon="notifications" className="text-xl" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-            </button>
-            <Button variant="primary" className="flex items-center gap-2">
-              <MaterialSymbol icon="download" className="text-xl" />
-              تصدير شامل
-            </Button>
-          </div>
-        </div>
-      </div>
+  const breadcrumbs = [
+    { label: 'Home', labelAr: 'الرئيسية', path: '/' },
+    { label: 'Reports', labelAr: 'التقارير' },
+  ]
 
+  const headerActions = [
+    {
+      label: 'Export All',
+      labelAr: 'تصدير شامل',
+      icon: <MaterialSymbol icon="download" className="text-xl" />,
+      variant: 'primary' as const,
+      onClick: () => console.log('Export all reports'),
+    },
+  ]
+
+  return (
+    <AppLayout titleAr="التقارير">
+      <PageHeader
+        title="Reports"
+        titleAr="مركز التقارير الذكي"
+        subtitle="Smart Reports Center"
+        subtitleAr="إدارة وعرض جميع تقارير النظام"
+        actions={headerActions}
+        breadcrumbs={breadcrumbs}
+      />
+
+      <div className="space-y-6">
       {/* Filters Section */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -365,6 +375,7 @@ export default function ReportsPage() {
           </div>
         ))}
       </div>
-    </div>
+      </div>
+    </AppLayout>
   )
 }
