@@ -793,6 +793,6 @@ export default function AddEmployeePage() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   )
 }
