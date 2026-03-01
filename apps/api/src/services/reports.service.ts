@@ -1134,6 +1134,219 @@ export class ReportsService {
 
     return exportRecord
   }
+
+  // ============================================================================
+  // GET REPORT PREVIEW
+  // ============================================================================
+
+  async getReportPreview(runId: string) {
+    const run = await this.getReportRunById(runId)
+
+    if (run.status !== ReportStatusEnum.Enum.COMPLETED) {
+      throw new Error('Cannot preview a report that has not completed')
+    }
+
+    // Get the report definition for display info
+    const reportDefinition = await prisma.reportDefinition.findUnique({
+      where: { id: run.reportId },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        nameAr: true,
+        category: true,
+        description: true,
+        descriptionAr: true,
+      },
+    })
+
+    if (!reportDefinition) {
+      throw new NotFoundError('تعريف التقرير غير موجود - Report definition not found')
+    }
+
+    // Extract data from resultData
+    const resultData = run.resultData || {}
+
+    // Build preview response based on report type
+    const preview = {
+      reportRun: {
+        id: run.id,
+        status: run.status,
+        startDate: run.startDate,
+        endDate: run.endDate,
+        createdAt: run.createdAt,
+        completedAt: run.completedAt,
+        reference: `REP-${new Date(run.createdAt).getFullYear()}-${run.id.slice(-6)}`,
+      },
+      reportDefinition,
+      parameters: run.parameters,
+      data: resultData,
+      // Formatted display data
+      display: this.formatPreviewData(reportDefinition.type, resultData, run.parameters),
+    }
+
+    return preview
+  }
+
+  // ============================================================================
+  // GET REPORT EXPORTS (List)
+  // ============================================================================
+
+  async getReportExports(runId: string) {
+    // Verify run exists
+    await this.getReportRunById(runId)
+
+    const exports = await prisma.reportExport.findMany({
+      where: { runId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return exports
+  }
+
+  // ============================================================================
+  // GET EXPORT FILE FOR DOWNLOAD
+  // ============================================================================
+
+  async getExportFile(exportId: string) {
+    const exportRecord = await this.getExportById(exportId)
+
+    if (exportRecord.status !== ExportStatusEnum.Enum.COMPLETED) {
+      throw new Error('Export is not ready for download')
+    }
+
+    if (!exportRecord.fileUrl) {
+      throw new Error('No file available for this export')
+    }
+
+    // In a real implementation, you would read the file from storage
+    // For now, we'll return a placeholder buffer
+    const fileBuffer = Buffer.from('Placeholder file content')
+
+    return {
+      file: fileBuffer,
+      fileName: exportRecord.fileName || `export_${exportId}`,
+      mimeType: this.getMimeType(exportRecord.format),
+    }
+  }
+
+  // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
+  private formatPreviewData(reportType: string, resultData: any, parameters: any) {
+    // Format data for display based on report type
+    switch (reportType) {
+      case 'SUPPLIER_STATEMENT':
+        return this.formatSupplierStatementPreview(resultData, parameters)
+      case 'PROJECT_PROFITABILITY':
+        return this.formatProjectProfitabilityPreview(resultData, parameters)
+      case 'LABOR_COSTS':
+        return this.formatLaborCostsPreview(resultData, parameters)
+      case 'EQUIPMENT_OPERATION':
+        return this.formatEquipmentOperationPreview(resultData, parameters)
+      default:
+        return resultData
+    }
+  }
+
+  private formatSupplierStatementPreview(data: any, parameters: any) {
+    const { suppliers = [], summary = {} } = data
+
+    // Build table rows from supplier data
+    const rows = suppliers.flatMap((supplier: any) => {
+      // Get purchase orders for this supplier
+      const supplierPOs = data.purchaseOrders?.filter((po: any) => po.supplierId === supplier.id) || []
+
+      return supplierPOs.map((po: any) => ({
+        date: new Date(po.orderedAt).toLocaleDateString('en-GB'),
+        reference: po.orderNumber,
+        description: `${supplier.nameAr || supplier.name} - ${po.items?.[0]?.name || 'مواد'}`,
+        debit: 0,
+        credit: po.grandTotal,
+      }))
+    })
+
+    // Calculate totals
+    const totalCredit = rows.reduce((sum: number, row: any) => sum + row.credit, 0)
+    const balance = totalCredit
+
+    return {
+      columns: [
+        { key: 'date', label: 'التاريخ', align: 'center' },
+        { key: 'reference', label: 'رقم المرجع', align: 'center' },
+        { key: 'description', label: 'الوصف', align: 'right' },
+        { key: 'debit', label: 'مدين (ريال)', align: 'center', format: 'currency' },
+        { key: 'credit', label: 'دائن (ريال)', align: 'center', format: 'currency' },
+      ],
+      rows,
+      totals: {
+        debit: 0,
+        credit: totalCredit,
+        balance,
+      },
+      entityInfo: parameters.supplierId ? {
+        name: suppliers[0]?.name,
+        nameAr: suppliers[0]?.nameAr,
+        address: suppliers[0]?.address || 'الرياض',
+      } : null,
+      period: {
+        from: parameters.startDate ? new Date(parameters.startDate).toLocaleDateString('en-GB') : '01/01/2023',
+        to: parameters.endDate ? new Date(parameters.endDate).toLocaleDateString('en-GB') : '31/12/2023',
+      },
+    }
+  }
+
+  private formatProjectProfitabilityPreview(data: any, parameters: any) {
+    const { projects = [], summary = {} } = data
+
+    const rows = projects.map((project: any) => ({
+      projectCode: project.code,
+      projectName: project.nameAr || project.name,
+      revenue: project.revenue || 0,
+      expenses: project.expenses || 0,
+      laborCost: project.laborCost || 0,
+      profit: project.profit || 0,
+      profitMargin: project.profitMargin || 0,
+    }))
+
+    return {
+      columns: [
+        { key: 'projectCode', label: 'رقم المشروع', align: 'center' },
+        { key: 'projectName', label: 'اسم المشروع', align: 'right' },
+        { key: 'revenue', label: 'الإيرادات', align: 'center', format: 'currency' },
+        { key: 'expenses', label: 'المصروفات', align: 'center', format: 'currency' },
+        { key: 'laborCost', label: 'تكلفة العمالة', align: 'center', format: 'currency' },
+        { key: 'profit', label: 'الربح', align: 'center', format: 'currency' },
+        { key: 'profitMargin', label: 'هامش الربح %', align: 'center', format: 'percentage' },
+      ],
+      rows,
+      totals: summary,
+    }
+  }
+
+  private formatLaborCostsPreview(data: any, parameters: any) {
+    // Similar implementation for labor costs
+    return data
+  }
+
+  private formatEquipmentOperationPreview(data: any, parameters: any) {
+    // Similar implementation for equipment operation
+    return data
+  }
+
+  private getMimeType(format: string): string {
+    switch (format) {
+      case 'PDF':
+        return 'application/pdf'
+      case 'EXCEL':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      case 'CSV':
+        return 'text/csv'
+      default:
+        return 'application/octet-stream'
+    }
+  }
 }
 
 // ============================================================================

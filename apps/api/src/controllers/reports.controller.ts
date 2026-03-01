@@ -289,6 +289,111 @@ export class ReportsController {
   }
 
   /**
+   * GET /api/reports/runs/:runId/preview
+   * Get preview data for a report run
+   */
+  async getReportPreview(req: Request, res: Response) {
+    try {
+      const { runId } = req.params
+      const preview = await reportsService.getReportPreview(runId)
+
+      res.json({
+        success: true,
+        data: preview,
+      })
+    } catch (error: any) {
+      if (error.name === 'NotFoundError') {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'NOT_FOUND',
+          },
+        })
+      }
+
+      console.error('Get report preview error:', error)
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'خطأ في الخادم - Internal server error',
+          code: 'INTERNAL_ERROR',
+        },
+      })
+    }
+  }
+
+  /**
+   * GET /api/reports/runs/:runId/exports
+   * List all exports for a report run
+   */
+  async getReportExports(req: Request, res: Response) {
+    try {
+      const { runId } = req.params
+      const exports = await reportsService.getReportExports(runId)
+
+      res.json({
+        success: true,
+        data: exports,
+      })
+    } catch (error: any) {
+      console.error('Get report exports error:', error)
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'خطأ في الخادم - Internal server error',
+          code: 'INTERNAL_ERROR',
+        },
+      })
+    }
+  }
+
+  /**
+   * GET /api/reports/exports/:exportId/download
+   * Download or preview an exported file
+   */
+  async downloadExport(req: Request, res: Response) {
+    try {
+      const { exportId } = req.params
+      const { file, fileName, mimeType } = await reportsService.getExportFile(exportId)
+
+      // Set appropriate headers for download or inline preview
+      const isPdf = mimeType === 'application/pdf'
+      const disposition = isPdf && req.query.inline === '1' ? 'inline' : 'attachment'
+
+      res.setHeader('Content-Type', mimeType)
+      res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(fileName)}"`)
+
+      // Send file (buffer or stream)
+      if (Buffer.isBuffer(file)) {
+        res.send(file)
+      } else {
+        // @ts-ignore - file might be a stream
+        file.pipe(res)
+      }
+    } catch (error: any) {
+      if (error.name === 'NotFoundError') {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: error.message,
+            code: 'NOT_FOUND',
+          },
+        })
+      }
+
+      console.error('Download export error:', error)
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'خطأ في الخادم - Internal server error',
+          code: 'INTERNAL_ERROR',
+        },
+      })
+    }
+  }
+
+  /**
    * GET /api/reports/vat-summary
    * Get VAT summary (quick access)
    */

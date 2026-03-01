@@ -26,6 +26,7 @@ import { ProjectFinancialReportPage } from '@/pages/ProjectFinancialReport'
 import { AnalyticsPage } from '@/pages/Analytics'
 import { SettingsPage } from '@/pages/Settings'
 import ReportsPage from '@/pages/Reports/ReportsPage'
+import ReportPreviewPage from '@/pages/ReportsPreview/ReportPreviewPage'
 
 export default function AppRouter() {
   return (
@@ -67,6 +68,7 @@ export default function AppRouter() {
       <Route path="/settings" element={<SettingsPage />} />
       {/* Reports Routes */}
       <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/reports/preview/:runId" element={<ReportPreviewPage />} />
       {/* Component Test */}
       <Route path="/components" element={<ComponentTest />} />
       {/* Add more routes here as we create more pages */}

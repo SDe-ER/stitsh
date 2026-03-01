@@ -896,19 +896,21 @@ model ReportRun {
 }
 
 model ReportExport {
-  id          String       @id @default(cuid())
-  runId       String       @map("run_id")
-  format      ExportFormat
-  status      ExportStatus @default(PENDING)
-  fileUrl     String?      @map("file_url")
-  fileName    String?      @map("file_name")
-  fileSize    Int?         @map("file_size") // in bytes
-  error       String?
-  createdAt   DateTime     @default(now()) @map("created_at")
-  completedAt DateTime?    @map("completed_at")
+  id             String       @id @default(cuid())
+  runId          String       @map("run_id")
+  format         ExportFormat
+  status         ExportStatus @default(PENDING)
+  fileUrl        String?      @map("file_url")
+  fileName       String?      @map("file_name")
+  fileSize       Int?         @map("file_size") // in bytes
+  recipientEmail String?      @map("recipient_email") // Email for sending copy
+  exportOptions  Json?        @map("export_options") // { includeTax: true, includeSignature: true, attachInvoices: false }
+  error          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  completedAt    DateTime?    @map("completed_at")
 
   // Relations
-  run         ReportRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run            ReportRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
   @@index([status])

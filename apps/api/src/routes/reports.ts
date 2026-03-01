@@ -57,6 +57,20 @@ router.get('/runs', reportsController.getReportRuns.bind(reportsController))
  */
 router.get('/runs/:id', reportsController.getReportRunById.bind(reportsController))
 
+/**
+ * @route   GET /api/reports/runs/:runId/preview
+ * @desc    Get preview data for a report run
+ * @access  Private
+ */
+router.get('/runs/:runId/preview', reportsController.getReportPreview.bind(reportsController))
+
+/**
+ * @route   GET /api/reports/runs/:runId/exports
+ * @desc    List all exports for a report run
+ * @access  Private
+ */
+router.get('/runs/:runId/exports', reportsController.getReportExports.bind(reportsController))
+
 // ============================================================================
 // REPORT EXPORTS
 // ============================================================================
@@ -74,5 +88,12 @@ router.post('/:runId/export', reportsController.exportReport.bind(reportsControl
  * @access  Private
  */
 router.get('/exports/:id', reportsController.getExportById.bind(reportsController))
+
+/**
+ * @route   GET /api/reports/exports/:exportId/download
+ * @desc    Download or preview an exported file
+ * @access  Private
+ */
+router.get('/exports/:exportId/download', reportsController.downloadExport.bind(reportsController))
 
 export const reportsRouter = router

@@ -144,6 +144,26 @@ export const reportsService = {
     return response.data.data
   },
 
+  async getPreview(runId: string) {
+    const response = await api.get<{ success: boolean; data: any }>(`/reports/runs/${runId}/preview`)
+    return response.data.data
+  },
+
+  async getExports(runId: string) {
+    const response = await api.get<{ success: boolean; data: ReportExport[] }>(`/reports/runs/${runId}/exports`)
+    return response.data.data
+  },
+
+  async export(runId: string, data: { format: ExportFormat; recipientEmail?: string; exportOptions?: any }) {
+    const response = await api.post<{ success: boolean; data: ReportExport }>(`/reports/${runId}/export`, {
+      runId,
+      format: data.format,
+      recipientEmail: data.recipientEmail,
+      exportOptions: data.exportOptions,
+    })
+    return response.data.data
+  },
+
   async getVATSummary(): Promise<VATSummary> {
     const response = await api.get<{ success: boolean; data: VATSummary }>('/reports/vat-summary')
     return response.data.data
