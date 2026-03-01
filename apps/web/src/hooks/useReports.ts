@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { reportsService, ReportDefinition, ReportRun, ReportExport, RunReportParams, ReportType, VATSummary } from '@/services/reports'
+import { reportsService } from '@/services/reports'
+import type { ReportDefinition, ReportRun, ReportExport, RunReportParams, ReportType, VATSummary } from '@/services/reports'
 
 // ============================================================================
 // HOOKS

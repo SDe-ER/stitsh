@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useReports, useRunReport, useVATSummary, ReportType } from '@/hooks/useReports'
+import { useReports, useRunReport, useVATSummary } from '@/hooks/useReports'
 import { MaterialSymbol } from '@/components/ui/MaterialSymbol'
 import { Button } from '@/components/ui/Button'
+import type { ReportType } from '@/services/reports'
 
 // ============================================================================
 // REPORT TEMPLATES CONFIG (from Stitch)
